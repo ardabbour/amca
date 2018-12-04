@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
     Amca: The RL-Based Backgammon Agent
@@ -14,7 +15,7 @@
 from .player import Player
 from .board import Board
 
-class Game():
+class Game:
     """Defines a backgammon game object."""
 
     def __init__(self, w_player, b_player):
