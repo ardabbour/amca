@@ -152,6 +152,18 @@ class Board:
         source.remove_checker()
         self.__bourne_off[source.get_color()] += 1
 
+    #TODO
+    def reenter(self, color, target_point_index):
+
+        if self.__hit[color] < 1:
+            raise ValueError('Cannot reenter; no checkers on bar.')
+
+        target = self.__board[target_point_index]
+
+        if target.get_color() not in [None, color]:
+            raise ValueError('Cannot move into a point occupied by opponent.')
+
+
     ############################ ACTIONS ############################
 
 
