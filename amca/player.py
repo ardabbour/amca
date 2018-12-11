@@ -32,16 +32,16 @@ class Player():
 
     def get_name(self):
         return self.__name
-    
+
     def is_human(self):
         return self.__is_human
-    
+
     def get_policy(self):
         return self.__policy
-    
+
     def get_dice_history(self):
         return self.__dice_history
-    
+
     def get_move_history(self):
         return self.__move_history
 
@@ -71,4 +71,3 @@ class Player():
         desired_move = input("Enter the index of the move desired.")
 
         return moves[desired_move]
-
