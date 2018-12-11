@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """
     Amca: The RL-Based Backgammon Agent
@@ -14,7 +15,7 @@
 import random
 
 
-class Player():
+class Player:
     """A player can be a human or an AI. If it is a human, the human will have
     to throw the dice and get a list of possible moves from the game."""
 
