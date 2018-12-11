@@ -87,5 +87,3 @@ class Game:
 
         return (False, None)
 
-def new_function(a, b, c):
-    return 1
