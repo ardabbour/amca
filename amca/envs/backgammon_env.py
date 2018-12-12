@@ -11,6 +11,7 @@ from amca.board import Board
 def board_to_state(board):
     return 1
 
+
 # TODO
 def state_to_board(state):
     return 1
@@ -39,7 +40,6 @@ class BackgammonEnv(gym.Env):
 
     def __init__(self):
         self.__board = Board()
-        self.__state = board_to_state(self.__board)
         self.action_space = spaces.Dict({'type': spaces.Discrete(4),
                                          'source': spaces.Discrete(24),
                                          'target': spaces.Discrete(24)})
@@ -104,7 +104,7 @@ class BackgammonEnv(gym.Env):
     def get_state(self):
         """Returns the state of the environment, that is the board."""
 
-        return self.__board
+        return board_to_state(self.__board)
 
     # TODO
     def get_reward(self, state=None):
