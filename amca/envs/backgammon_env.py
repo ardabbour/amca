@@ -38,8 +38,8 @@ class BackgammonEnv(gym.Env):
 
     The observation space has the following structure:
         [
-            [Empty/White/Black, Number of checkers], # For point 0
             [Empty/White/Black, Number of checkers], # For point 1
+            [Empty/White/Black, Number of checkers], # For point 2
                                 .
                                 .
                                 .
