@@ -19,5 +19,6 @@ setup(
     url='https://github.com/ardabbour/amca',
     license=license,
     install_requires=['numpy', 'gym', 'tensorflow'],
-    packages=find_packages(exclude=('tests', 'docs'))
+    packages=find_packages(exclude=('tests', 'docs')),
+    python_requires=">=3.6.*"
 )
