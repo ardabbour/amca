@@ -35,6 +35,9 @@ class Board:
         self.__hit = {'w': 0, 'b': 0}
         self.__bourne_off = {'w': 0, 'b': 0}
 
+        #self.__whome = [0,1,2,3,4,5]
+        #self.__bhome = [18,19,20,21,22,23]
+
     ######################### GET/SET METHODS ########################
     def get_board(self):
         """Get method for the board."""
@@ -65,9 +68,11 @@ class Board:
         """Set method for the checkers bourne off."""
 
         self.__hit = hit
+
     ######################### GET/SET METHODS ########################
 
     ############################ ACTIONS ############################
+
     def basic_validity(self, source_point_index, target_point_index=None):
         """Base sanity checks for all actions."""
 
@@ -81,6 +86,7 @@ class Board:
 
         source = self.__board[source_point_index]
         if target_point_index is not None:
+            # TODO What is the point of this?
             target = self.__board[target_point_index]
 
         if source.get_count() < 1:
@@ -90,79 +96,52 @@ class Board:
 
         return True
 
-    def move(self, source_point_index, target_point_index):
+    def update_move(self, color, source_point_index, target_point_index):
         """Moves a single checker from one point to another. This action is only
         valid for moving to an empty point or a point already occupied by the
         player."""
 
-        if self.basic_validity(source_point_index, target_point_index):
-            source = self.__board[source_point_index]
-            target = self.__board[target_point_index]
+        source = self.__board[source_point_index]
+        target = self.__board[target_point_index]
 
-        if target.get_color() not in [None, source.get_color()]:
-            raise ValueError('Cannot move into a point occupied by opponent.')
-
-        # Set empty point's color if applicable.
         if target.get_count() == 0:
-            target.set_color(source.get_color())
+            target.add_firstchecker(color)
+        else:
+            target.add_checker()
 
-        # Move checker from source point to target point.
         source.remove_checker()
-        target.add_checker()
 
-    def hit(self, source_point_index, target_point_index):
+    def update_hit(self, color, source_point_index, target_point_index):
         """Hits an opponent's checker. This action is only valid for hitting an
         opponent checker that is alone in a point."""
 
-        if self.basic_validity(source_point_index, target_point_index):
-            source = self.__board[source_point_index]
-            target = self.__board[target_point_index]
-
-        if source.get_color() == target.get_color():
-            raise ValueError('Cannot hit self.')
-
-        if target.get_color() is None:
-            raise ValueError('Cannot hit an empty point.')
-
-        if target.get_count() > 1:
-            raise ValueError('Cannot hit more than a single checker.')
-
-        target.remove_checker()
-        self.__hit[target.get_color()] += 1
-        source.remove_checker()
-        target.add_checker()
-
-    def bear_off(self, source_point_index):
-        """Bears a checker off the board."""
-
-        if self.basic_validity(source_point_index):
-            source = self.__board[source_point_index]
-
-        count = 0
-        if source.get_color() == 'w':
-            for i in range(6, 24):
-                count += self.__board[i].get_count()
-        else:
-            for i in range(18, -1):
-                count += self.__board[i].get_count()
-        if count > 0:
-            raise ValueError(
-                'Cannot bear off; not all checkers in home board.')
-
-        source.remove_checker()
-        self.__bourne_off[source.get_color()] += 1
-
-    #TODO
-    def reenter(self, color, target_point_index):
-
-        if self.__hit[color] < 1:
-            raise ValueError('Cannot reenter; no checkers on bar.')
-
+        source = self.__board[source_point_index]
         target = self.__board[target_point_index]
 
-        if target.get_color() not in [None, color]:
-            raise ValueError('Cannot move into a point occupied by opponent.')
+        source.remove_checker()
+        target.add_firstchecker(color)
 
+    def update_bearoff(self, color, source_point_index):
+        """Bears a checker off the board."""
+
+        source = self.__board[source_point_index]
+
+        source.remove_checker()
+
+    def update_reenter(self, color, target_index):
+
+        target = self.__board[target_index]
+
+        if target.get_count() == 0:
+            target.add_firstchecker(color)
+        else:
+            target.add_checker()
+
+    def update_reenterhit(self, color, target_index):
+
+        target = self.__board[target_index]
+
+        target.add_firstchecker(color)
 
     ############################ ACTIONS ############################
 
@@ -208,6 +187,12 @@ class Point:
             add checker after setting the color.')
 
         self.__count += 1
+
+    def add_firstchecker(self, colorx):
+        """Adds first checker to the point"""
+
+        self.__color = colorx
+        self.__count = 1
 
     def remove_checker(self):
         """Removes a single checker."""
