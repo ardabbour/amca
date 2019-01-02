@@ -26,6 +26,8 @@ class Game:
         self.__gameboard = Board()
         self.__dice = []
 
+        self.__w_bourne_off = 0
+        self.__b_bourne_off = 0
         self.__w_hitted = 0
         self.__b_hitted = 0
         self.__w_canbearoff = False
@@ -91,6 +93,19 @@ class Game:
                 statestr += "0"
         return statestr
 
+    def get_state4(self):
+        state = [self.__w_bourne_off, self.__b_bourne_off,
+                 self.__w_hitted, self.__b_hitted]
+        board = self.__gameboard.get_board()
+        for point in board:
+            if point.get_color() == None:
+                color = 0
+            elif point.get_color() == 'w':
+                color = 1
+            elif point.get_color() == 'b':
+                color = 2
+            state.append([color, ])
+
     def update_board(self, player, action):
         """Given a tuple of dice rolls, return the set of possible moves.
 
@@ -123,6 +138,7 @@ class Game:
                     (self.__gameboard).update_hit("w", action[1], action[2])
                 if (action[0] == "bearoff"):
                     (self.__gameboard).update_bearoff("w", action[1])
+                    self.__w_bourne_off += 1
 
         if player == self.__b_player:
             if self.__b_hitted > 0:
@@ -141,6 +157,8 @@ class Game:
                     (self.__gameboard).update_hit("b", action[1], action[2])
                 if (action[0] == "bearoff"):
                     (self.__gameboard).update_bearoff("b", action[1])
+                    self.__b_bourne_off += 1
+
 
     def get_actions(self, player, roll):
         """Given a tuple of dice rolls, return the set of possible moves.
@@ -228,6 +246,9 @@ class Game:
 
         return actions, rewards
 
+    def get_board(self):
+        return self.__gameboard.get_board()
+
     # TODO: what is the use of this?
     # def is_over(self, board):
     #     """Returns a tuple of which the first element is a boolean of the game
@@ -298,7 +319,7 @@ class Game:
 # TODO: Is this supposed to be a method of the game object? Otherwise,
 # it cannot work!
 ###
-###  Code for Sarsa Training
+# Code for Sarsa Training
 # def train(agent_train, opponent, maxmove=1000, numgames=100000):
 #     """Trains a sarsa agent (white player) against a given opponent."""
 
@@ -362,3 +383,6 @@ class Game:
 # trained_agent = train(sarsa_player, player2, 1000, 100000)
 
 # # write coeeficients (q values of trained agent) to a file
+
+myGame = Game(1, 2)
+print(myGame.get_state())

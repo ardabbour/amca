@@ -33,6 +33,10 @@ class BackgammonEnv(gym.Env):
 
     The observation space has the following structure:
         [
+            White player checkers bourne off,
+            Black player checkers bourne off,
+            White player checkers hit,
+            Black player checkers hit,
             [Empty/White/Black, Number of checkers], # For point 1
             [Empty/White/Black, Number of checkers], # For point 2
                                 .
@@ -45,17 +49,20 @@ class BackgammonEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, game, higher_starts=True):
+    def __init__(self, w_player, b_player, higher_starts=True):
 
         # Environment-specific details; namely action and observation spaces.
         self.action_space = spaces.MultiDiscrete([5, 25, 25])
-        self.observation_space = spaces.MultiDiscrete([[3, 16], ]*24)
+        self.observation_space = spaces.MultiDiscrete(
+            [16, ]*4 + [[3, 16], ]*24)
+        self.metadata = {'render.modes': ['human']}
+        self.reward_range = (-360, 360)  # Not exactly, approximation.
 
         # Game-specific details
+        self.w_player = w_player
+        self.b_player = b_player
         self.higher_starts = higher_starts
-        self.game = game
-        w_player = self.game.get_player('w')
-        b_player = self.game.get_player('b')
+        self.game = Game(w_player, b_player)
 
         # For logging info, maybe helpful, gets reset per episode.
         self.starter = self.turn
@@ -66,12 +73,11 @@ class BackgammonEnv(gym.Env):
         self.start_time = time.time()
 
         # Determine first roll goes to which player.
-
-        w_player_roll = np.sum(game.roll_dice())
-        b_player_roll = np.sum(game.roll_dice())
+        w_player_roll = np.sum(self.game.roll_dice())
+        b_player_roll = np.sum(self.game.roll_dice())
         while w_player_roll == b_player_roll:
-            w_player_roll = np.sum(game.roll_dice())
-            b_player_roll = np.sum(game.roll_dice())
+            w_player_roll = np.sum(self.game.roll_dice())
+            b_player_roll = np.sum(self.game.roll_dice())
 
         if self.higher_starts:
             self.turn = 1 if w_player_roll > b_player_roll else 2
@@ -102,11 +108,12 @@ class BackgammonEnv(gym.Env):
             self.turn = 1
 
         dice = self.game.get_dice()
-        actions, rewards = self.get_actions(player, dice)
+        actions, rewards = self.game.get_actions(
+            player, dice)  # TODO VERY CRITICAL
         action = player.make_decision(actions)
         reward = rewards[actions.index(action)]
 
-        observation = self.game.get_state()  # TODO VERY CRITICAL
+        observation = self.game.get_state() # TODO VERY CRITICAL
         info = self.get_info()
         done = self.game.is_over()
         if done:
@@ -117,7 +124,7 @@ class BackgammonEnv(gym.Env):
     def reset(self):
         """Resets then returns the board."""
 
-        self.game = Game()
+        self.game = Game(self.w_player, self.b_player)
         player1_roll = np.sum(self.game.roll_dice())
         player2_roll = np.sum(self.game.roll_dice())
         while player1_roll == player2_roll:
@@ -136,14 +143,28 @@ class BackgammonEnv(gym.Env):
         self.player2_dice_history = []
         self.player2_action_history = []
 
-        return self.board
+        return self.game.get_state()
 
     # TODO
     def render(self):
         """Represent the board in the terminal. In this representation, x is
         player1 and y is player 2."""
 
-        
+        state = self.game.get_state4()
+        for index, info in enumerate(state):
+            if index == 0:
+                print('White player checkers bourne off: {}'.format(info))
+            elif index == 1:
+                print('Black player checkers bourne off: {}'.format(info))
+            elif index == 2:
+                print('White player checkers hit: {}'.format(info))
+            elif index == 3:
+                print('Black player checkers hit: {}'.format(info))
+            else:
+                break
+            # print('-'*33)
+            # print(color for color in state[])
+            # print('-'*33)
 
         # # For example, the initial board would be:
         # print("------|-|------")
