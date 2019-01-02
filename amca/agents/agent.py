@@ -12,19 +12,16 @@
     The Simple agent uses a basic DNN model to take an action. Can be trained.
 """
 
-import numpy as np
-import tensorflow as tf
-from tensorflow import keras
 
-
-class SimpleAgent:
-    def __init__(self, model):
-        self.__model = model
+class Agent:
+    def __init__(self, policy):
+        self.__policy = policy
         self.__action_history = []
 
     def act(self, observation, valid_actions):
-        """Returns the action that is closest to the predicted output."""
+        """Returns the action that is closest to the predicted output.
+        Might work with continuous algorithms."""
 
-        prediction = self.__model.predict(observation)
+        prediction = self.__policy.predict(observation, valid_actions)
 
-        return min(valid_actions, key=lambda x:abs(x-prediction))
+        return min(valid_actions, key=lambda x: abs(x-prediction))

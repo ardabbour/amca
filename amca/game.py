@@ -17,9 +17,9 @@ from amca.board import Board
 import random
 
 
-
 def roll_dice():
     return [random.randint(1, 6), random.randint(1, 6)]
+
 
 class Game:
     """Defines a backgammon game object."""
@@ -98,8 +98,8 @@ class Game:
         return statestr
 
     def get_state4(self):
-        state = [self.__w_bourne_off, self.__b_bourne_off,
-                 self.__w_hitted, self.__b_hitted]
+        state = [[self.__w_bourne_off, self.__b_bourne_off],
+                 [self.__w_hitted, self.__b_hitted]]
         board = self.__gameboard.get_board()
         for point in board:
             if point.get_color() == None:
@@ -108,7 +108,8 @@ class Game:
                 color = 1
             elif point.get_color() == 'b':
                 color = 2
-            state.append([color, ])
+            state.append([color, point.get_count()])
+        return state
 
     def update_board(self, player, action):
         """Given a tuple of dice rolls, return the set of possible moves.
@@ -162,7 +163,6 @@ class Game:
                 if (action[0] == "bearoff"):
                     (self.__gameboard).update_bearoff("b", action[1])
                     self.__b_bourne_off += 1
-
 
     def get_actions(self, player, roll):
         """Given a tuple of dice rolls, return the set of possible moves.

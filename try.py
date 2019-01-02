@@ -1,4 +1,4 @@
-import amca
+from amca import agents, envs
 import gym
 
 import gym
