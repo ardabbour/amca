@@ -5,14 +5,9 @@ import time
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
-
 import numpy as np
 
-
-def roll_dice():
-    """Returns the roll of two die as an ndarray."""
-
-    return np.random.choice([1, 2, 3, 4, 5, 6], size=(2,))
+from amca.game import Game
 
 
 class BackgammonEnv(gym.Env):
@@ -26,15 +21,15 @@ class BackgammonEnv(gym.Env):
 
     For example, [0, 3, 7] moves the first player (white) from the 2nd to the
     6th point.
-                   --------------------------
-                   |   Action   | Encoding  |
-                   |------------------------|
-                   |  Move      |     0     |
-                   |  Hit       |     1     |
-                   |  Bear-off  |     2     |
-                   |  Enter     |     3     |
-                   |  Hit-enter |     4     |
-                   --------------------------
+                   ---------------------------
+                   |    Action    | Encoding |
+                   |-------------------------|
+                   |  Move        |    0     |
+                   |  Hit         |    1     |
+                   |  Bear-off    |    2     |
+                   |  Reenter     |    3     |
+                   |  Reenter-hit |    4     |
+                   ---------------------------
 
     The observation space has the following structure:
         [
@@ -50,38 +45,39 @@ class BackgammonEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, player1, player2, higher_starts=True):
+    def __init__(self, game, higher_starts=True):
+
+        # Environment-specific details; namely action and observation spaces.
         self.action_space = spaces.MultiDiscrete([5, 25, 25])
         self.observation_space = spaces.MultiDiscrete([[3, 16], ]*24)
-        self.board = np.array([[2, 2], [0, 0], [0, 0], [0, 0], [0, 0], [1, 5],
-                               [0, 0], [1, 3], [0, 0], [0, 0], [0, 0], [2, 5],
-                               [1, 5], [0, 0], [0, 0], [0, 0], [2, 3], [0, 0],
-                               [2, 5], [0, 0], [0, 0], [0, 0], [0, 0], [1, 2]])
 
-        self.player1 = player1
-        self.player2 = player2
+        # Game-specific details
         self.higher_starts = higher_starts
+        self.game = game
+        w_player = self.game.get_player('w')
+        b_player = self.game.get_player('b')
 
-        player1_roll = np.sum(roll_dice())
-        player2_roll = np.sum(roll_dice())
-        while player1_roll == player2_roll:
-            player1_roll = np.sum(roll_dice())
-            player2_roll = np.sum(roll_dice())
-
-        if self.higher_starts:
-            self.turn = 1 if player1_roll > player2_roll else 2
-        else:
-            self.turn = 1 if player1_roll < player2_roll else 2
-
-        # For logging info, maybe helpful, reset per episode
+        # For logging info, maybe helpful, gets reset per episode.
         self.starter = self.turn
-        self.player1_dice_history = []
-        self.player1_action_history = []
-        self.player2_dice_history = []
-        self.player2_action_history = []
+        self.w_player_dice_history = []
+        self.w_player_action_history = []
+        self.b_player_dice_history = []
+        self.b_player_action_history = []
         self.start_time = time.time()
 
-    # TODO
+        # Determine first roll goes to which player.
+
+        w_player_roll = np.sum(game.roll_dice())
+        b_player_roll = np.sum(game.roll_dice())
+        while w_player_roll == b_player_roll:
+            w_player_roll = np.sum(game.roll_dice())
+            b_player_roll = np.sum(game.roll_dice())
+
+        if self.higher_starts:
+            self.turn = 1 if w_player_roll > b_player_roll else 2
+        else:
+            self.turn = 2 if b_player_roll > w_player_roll else 2
+
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
@@ -98,10 +94,21 @@ class BackgammonEnv(gym.Env):
             debugging, and sometimes learning)
         """
 
-        observation = self.board
-        done = self.get_done()
-        reward = self.get_reward(self.board, action)
+        if self.turn == 1:
+            player = self.w_player
+            self.turn = 2
+        elif self.turn == 2:
+            player = self.b_player
+            self.turn = 1
+
+        dice = self.game.get_dice()
+        actions, rewards = self.get_actions(player, dice)
+        action = player.make_decision(actions)
+        reward = rewards[actions.index(action)]
+
+        observation = self.game.get_state()  # TODO VERY CRITICAL
         info = self.get_info()
+        done = self.game.is_over()
         if done:
             self.reset()
 
@@ -110,15 +117,12 @@ class BackgammonEnv(gym.Env):
     def reset(self):
         """Resets then returns the board."""
 
-        self.board = np.array([[2, 2], [0, 0], [0, 0], [0, 0], [0, 0], [1, 5],
-                               [0, 0], [1, 3], [0, 0], [0, 0], [0, 0], [2, 5],
-                               [1, 5], [0, 0], [0, 0], [0, 0], [2, 3], [0, 0],
-                               [2, 5], [0, 0], [0, 0], [0, 0], [0, 0], [1, 2]])
-        player1_roll = np.sum(roll_dice())
-        player2_roll = np.sum(roll_dice())
+        self.game = Game()
+        player1_roll = np.sum(self.game.roll_dice())
+        player2_roll = np.sum(self.game.roll_dice())
         while player1_roll == player2_roll:
-            player1_roll = np.sum(roll_dice())
-            player2_roll = np.sum(roll_dice())
+            player1_roll = np.sum(self.game.roll_dice())
+            player2_roll = np.sum(self.game.roll_dice())
 
         if self.higher_starts:
             self.turn = 1 if player1_roll > player2_roll else 2
@@ -139,6 +143,8 @@ class BackgammonEnv(gym.Env):
         """Represent the board in the terminal. In this representation, x is
         player1 and y is player 2."""
 
+        
+
         # # For example, the initial board would be:
         # print("------|-|------")
         # print("o   o |-|o    x")
@@ -156,58 +162,6 @@ class BackgammonEnv(gym.Env):
         # print("x   x |-|x    o")
         # print("x   x |-|x    o")
         # print("------|-|------")
-
-    # TODO
-    def get_reward(self, action, state=None):
-        """Basic implementation of pip counting. For detailed explaination and
-        substitutes: http://www.bkgm.com/articles/Driver/GuideToCountingPips/.
-
-        This will get the reward for the player1 by doing the following op:
-        
-        x = pip_count_player1_before_action - pip_count_player2_before_action
-        y = pip_count_player1_after_action - pip_count_player2_after_action
-        
-        return x - y"""
-
-        board = self.board if state is None else state
-
-        # For player1
-        before_pip_count1 = 0
-        for index, point in enumerate(board):
-            if point[0] == 1:
-                before_pip_count1 += (point[1] * (24 - index))
-        # For player2
-        before_pip_count2 = 0
-        for index, point in enumerate(board.flip(axis=0)):
-            if point[0] == 2:
-                before_pip_count2 += (point[1] * (24 - index))
-
-        before = before_pip_count1 - before_pip_count2
-
-        next_board = do_action(board, action)
-
-        after_pip_count1 = 0
-        for index, point in enumerate(next_board):
-            if point[0] == 1:
-                after_pip_count1 += (point[1] * (24 - index))
-        # For player2
-        after_pip_count2 = 0
-        for index, point in enumerate(next_board.flip(axis=0)):
-            if point[0] == 2:
-                before_pip_count2 += (point[1] * (24 - index))
-
-        after = after_pip_count1 - after_pip_count2
-
-        return after - before
-
-    def get_done(self):
-        for player in [1, 2]:
-            i = 0
-            for point in self.board:
-                if point[0] == player:
-                    i += point[1]
-            if i < 1:
-                return True
 
     def get_info(self):
         """Returns useful info for debugging, etc."""
