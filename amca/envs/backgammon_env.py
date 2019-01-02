@@ -7,7 +7,8 @@ from gym import error, spaces, utils
 from gym.utils import seeding
 import numpy as np
 
-from amca.game import Game
+from amca.game import Game, roll_dice
+from amca.player import Player
 
 
 class BackgammonEnv(gym.Env):
@@ -49,12 +50,17 @@ class BackgammonEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, w_player, b_player, higher_starts=True):
+    def __init__(self, w_player=Player('w'), b_player=Player('b'), higher_starts=True):
 
         # Environment-specific details; namely action and observation spaces.
         self.action_space = spaces.MultiDiscrete([5, 25, 25])
         self.observation_space = spaces.MultiDiscrete(
-            [16, ]*4 + [[3, 16], ]*24)
+            [[16, 16], # bourne off checkers for white/black
+             [16, 16], # hit checkers for white/black
+             [3, 16], [3, 16], [3, 16], [3, 16], [3, 16], [3, 16],
+             [3, 16], [3, 16], [3, 16], [3, 16], [3, 16], [3, 16],
+             [3, 16], [3, 16], [3, 16], [3, 16], [3, 16], [3, 16],
+             [3, 16], [3, 16], [3, 16], [3, 16], [3, 16], [3, 16]])
         self.metadata = {'render.modes': ['human']}
         self.reward_range = (-360, 360)  # Not exactly, approximation.
 
@@ -64,6 +70,18 @@ class BackgammonEnv(gym.Env):
         self.higher_starts = higher_starts
         self.game = Game(w_player, b_player)
 
+        # Determine first roll goes to which player.
+        w_player_roll = np.sum(roll_dice())
+        b_player_roll = np.sum(roll_dice())
+        while w_player_roll == b_player_roll:
+            w_player_roll = np.sum(roll_dice())
+            b_player_roll = np.sum(roll_dice())
+
+        if self.higher_starts:
+            self.turn = 1 if w_player_roll > b_player_roll else 2
+        else:
+            self.turn = 2 if b_player_roll > w_player_roll else 2
+
         # For logging info, maybe helpful, gets reset per episode.
         self.starter = self.turn
         self.w_player_dice_history = []
@@ -71,18 +89,6 @@ class BackgammonEnv(gym.Env):
         self.b_player_dice_history = []
         self.b_player_action_history = []
         self.start_time = time.time()
-
-        # Determine first roll goes to which player.
-        w_player_roll = np.sum(self.game.roll_dice())
-        b_player_roll = np.sum(self.game.roll_dice())
-        while w_player_roll == b_player_roll:
-            w_player_roll = np.sum(self.game.roll_dice())
-            b_player_roll = np.sum(self.game.roll_dice())
-
-        if self.higher_starts:
-            self.turn = 1 if w_player_roll > b_player_roll else 2
-        else:
-            self.turn = 2 if b_player_roll > w_player_roll else 2
 
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -113,7 +119,7 @@ class BackgammonEnv(gym.Env):
         action = player.make_decision(actions)
         reward = rewards[actions.index(action)]
 
-        observation = self.game.get_state() # TODO VERY CRITICAL
+        observation = self.game.get_state()  # TODO VERY CRITICAL
         info = self.get_info()
         done = self.game.is_over()
         if done:
@@ -125,11 +131,11 @@ class BackgammonEnv(gym.Env):
         """Resets then returns the board."""
 
         self.game = Game(self.w_player, self.b_player)
-        player1_roll = np.sum(self.game.roll_dice())
-        player2_roll = np.sum(self.game.roll_dice())
+        player1_roll = np.sum(roll_dice())
+        player2_roll = np.sum(roll_dice())
         while player1_roll == player2_roll:
-            player1_roll = np.sum(self.game.roll_dice())
-            player2_roll = np.sum(self.game.roll_dice())
+            player1_roll = np.sum(roll_dice())
+            player2_roll = np.sum(roll_dice())
 
         if self.higher_starts:
             self.turn = 1 if player1_roll > player2_roll else 2

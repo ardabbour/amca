@@ -17,6 +17,10 @@ from amca.board import Board
 import random
 
 
+
+def roll_dice():
+    return [random.randint(1, 6), random.randint(1, 6)]
+
 class Game:
     """Defines a backgammon game object."""
 
@@ -180,7 +184,7 @@ class Game:
         w_indices = []
         b_indices = []
         empty_indices = []
-        for index, point in enumerate(self.__gameboard):
+        for index, point in enumerate(points):
             if point.get_color() == 'w':
                 w_indices.append(index)
             if point.get_color() == 'b':
@@ -384,5 +388,5 @@ class Game:
 
 # # write coeeficients (q values of trained agent) to a file
 
-myGame = Game(1, 2)
-print(myGame.get_state())
+# myGame = Game(1, 2)
+# print(myGame.get_state())
