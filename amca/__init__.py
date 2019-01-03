@@ -3,6 +3,14 @@
 from gym.envs.registration import register
 
 register(
-    id='backgammon-v0',
-    entry_point='amca.envs:BackgammonEnv',
+    id='Backgammon-v0',
+    entry_point='amca.envs:BackgammonRandomEnv',
+)
+register(
+    id='Backgammon-v1',
+    entry_point='amca.envs:BackgammonPolicyEnv',
+)
+register(
+    id='Backgammon-v2',
+    entry_point='amca.envs:BackgammonHumanEnv',
 )

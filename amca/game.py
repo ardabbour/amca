@@ -269,7 +269,7 @@ class Game:
 
     #     return (False, None)
 
-    def is_over(self):
+    def get_done(self):
         """Returns a tuple of which the first element is a boolean of the game
         being over or not and the second element is the winner."""
 
