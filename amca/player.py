@@ -28,8 +28,6 @@ class Player:
         if not is_human:
             assert policy
         self.__policy = policy
-        self.__dice_history = []
-        self.__move_history = []
 
     def get_name(self):
         return self.__name
@@ -40,23 +38,8 @@ class Player:
     def get_policy(self):
         return self.__policy
 
-    def get_dice_history(self):
-        return self.__dice_history
-
-    def get_move_history(self):
-        return self.__move_history
-
     def set_policy(self, policy):
         self.__policy = policy
-
-    def roll_dice(self):
-        """Returns a uniformly-distributed tuple representing 2 die."""
-
-        roll = random.choices([1, 2, 3, 4, 5, 6], k=2)
-
-        self.__dice_history.append(roll)
-
-        return roll
 
     def make_decision(self, moves):
         """Returns a move based on the agent's policy or the human's input."""
