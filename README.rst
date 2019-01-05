@@ -43,13 +43,9 @@ Usage
 
 There are two main scripts given:
 
-- **play.py**: to launch a game against a trained agent. For example,
-``python play.py ppo amca/agents/amca.pkl`` will launch the agent called
-``amca.pkl`` that was trained using the PPO algorithm.
+- **play.py**: to launch a game against a trained agent. For example, ``python play.py ppo amca/agents/amca.pkl`` will launch the agent called ``amca.pkl`` that was trained using the PPO algorithm.
 
-- **train.py**: to train an agent (with default hyperparameters) to play. For
-example, ``python train.py -n terminator -a sac -t 10000000`` will train an
-agent called ``terminator.pkl`` using the SAC algorithm for 10000000 timesteps.
+- **train.py**: to train an agent (with default hyperparameters) to play. For example, ``python train.py -n terminator -a sac -t 10000000`` will train an agent called ``terminator.pkl`` using the SAC algorithm for 10000000 timesteps.
 
 
 License
@@ -63,4 +59,7 @@ License
 .. _gym: https://gym.openai.com/
 .. _Stable Baselines: https://stable-baselines.readthedocs.io/
 .. _Backgammon: https://en.wikipedia.org/wiki/Backgammon/
+.. _Deep Q Network (Mnih et. al): https://arxiv.org/abs/1312.5602/
+.. _Proximal Policy Optimization (Schulman et. al): https://arxiv.org/abs/1707.06347/
+.. _Soft Actor-Critic (Haarnoja et. al): https://arxiv.org/abs/1812.05905/
 .. _GNU General Public License v3.0: /LICENSE
