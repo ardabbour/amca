@@ -29,6 +29,7 @@ from stable_baselines.bench import Monitor
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 from stable_baselines.deepq import policies as dqn_policies
 from stable_baselines.ddpg import policies as ddpg_policies
+from stable_baselines.sac import policies as sac_policies
 from stable_baselines.common.vec_env import DummyVecEnv
 from stable_baselines.results_plotter import load_results, ts2xy
 
@@ -110,22 +111,26 @@ if __name__ == "__main__":
         algorithm = ACKTR
     elif ARGS.algorithm.lower() == 'ddpg':
         algorithm = DDPG
-        MlpPolicy = dqn_policies.MlpPolicy
-        CnnPolicy = dqn_policies.CnnPolicy
+        MlpPolicy = ddpg_policies.MlpPolicy
+        CnnPolicy = ddpg_policies.CnnPolicy
         LnMlpPolicy = ddpg_policies.LnMlpPolicy
         LnCnnPolicy = ddpg_policies.LnCnnPolicy
     elif ARGS.algorithm.lower() == 'dqn':
         algorithm = DQN
         MlpPolicy = dqn_policies.MlpPolicy
         CnnPolicy = dqn_policies.CnnPolicy
-        LnMlpPolicy = ddpg_policies.LnMlpPolicy
-        LnCnnPolicy = ddpg_policies.LnCnnPolicy
+        LnMlpPolicy = dqn_policies.LnMlpPolicy
+        LnCnnPolicy = dqn_policies.LnCnnPolicy
     elif ARGS.algorithm.lower() == 'gail':
         algorithm = GAIL
     elif ARGS.algorithm.lower() == 'ppo':
         algorithm = PPO2
     elif ARGS.algorithm.lower() == 'sac':
         algorithm = SAC
+        MlpPolicy = sac_policies.MlpPolicy
+        CnnPolicy = sac_policies.CnnPolicy
+        LnMlpPolicy = sac_policies.LnMlpPolicy
+        LnCnnPolicy = sac_policies.LnCnnPolicy
     elif ARGS.algorithm.lower() == 'trpo':
         algorithm = TRPO
     else:
@@ -133,7 +138,7 @@ if __name__ == "__main__":
 
     if ARGS.policy.lower() == 'mlp':
         policy = MlpPolicy
-    if ARGS.policy.lower() == 'lnmlp':
+    elif ARGS.policy.lower() == 'lnmlp':
         policy = LnMlpPolicy
     elif ARGS.policy.lower() == 'mlplstm':
         policy = MlpLstmPolicy
@@ -141,7 +146,7 @@ if __name__ == "__main__":
         policy = MlpLnLstmPolicy
     elif ARGS.policy.lower() == 'cnn':
         policy = CnnPolicy
-    if ARGS.policy.lower() == 'lncnn':
+    elif ARGS.policy.lower() == 'lncnn':
         policy = LnCnnPolicy
     elif ARGS.policy.lower() == 'cnnlstm':
         policy = CnnLstmPolicy
