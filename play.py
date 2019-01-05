@@ -15,7 +15,7 @@
 import argparse
 
 import gym
-from stable_baselines import A2C, ACER, ACKTR, DDPG, DQN, GAIL, PPO2, TRPO
+from stable_baselines import A2C, ACER, ACKTR, DDPG, DQN, GAIL, PPO2, TRPO, SAC
 
 import amca
 
@@ -46,6 +46,8 @@ if __name__ == "__main__":
         algorithm = GAIL
     elif ARGS.algorithm.lower() == 'ppo':
         algorithm = PPO2
+    elif ARGS.algorithm.lower() == 'sac':
+        algorithm = SAC
     elif ARGS.algorithm.lower() == 'trpo':
         algorithm = TRPO
     else:

@@ -10,7 +10,7 @@
     Sabanci University
 
     This script allows us to train an RL agent using Gym and Stable Baselines.
-    Uses the vanilla hyperparameters of each algorithm. Saves a graph of the
+    Uses the default hyperparameters of each algorithm. Saves a graph of the
     training process, showing mean reward vs. timesteps.
 """
 
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 
 # Reinforcement Learning imports
 import gym
-from stable_baselines import A2C, ACER, ACKTR, DDPG, DQN, GAIL, PPO2, TRPO
+from stable_baselines import A2C, ACER, ACKTR, DDPG, DQN, GAIL, PPO2, TRPO, SAC
 from stable_baselines.bench import Monitor
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
 from stable_baselines.deepq import policies as dqn_policies
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--name', '-n',
                         help='Name of the agent to be trained.',
-                        default='amca',
+                        default='new_amca',
                         type=str)
     PARSER.add_argument('--log_directory', '-l',
                         help='Directory to store log files.',
@@ -124,6 +124,8 @@ if __name__ == "__main__":
         algorithm = GAIL
     elif ARGS.algorithm.lower() == 'ppo':
         algorithm = PPO2
+    elif ARGS.algorithm.lower() == 'sac':
+        algorithm = SAC
     elif ARGS.algorithm.lower() == 'trpo':
         algorithm = TRPO
     else:
