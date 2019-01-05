@@ -15,6 +15,7 @@
 from amca.player import Player
 from amca.board import Board
 import random
+import math
 
 
 def roll_dice():
@@ -24,11 +25,11 @@ def roll_dice():
 class Game:
     """Defines a backgammon game object."""
 
-    def __init__(self, w_player, b_player):
-        self.__w_player = w_player
+    def __init__(self, b_player=Player(policy='random')):
+        self.__w_player = "w"
         self.__b_player = b_player
         self.__gameboard = Board()
-        self.__dice = []
+        self.__dice = roll_dice()
 
         self.__w_bourne_off = 0
         self.__b_bourne_off = 0
@@ -36,19 +37,6 @@ class Game:
         self.__b_hitted = 0
         self.__w_canbearoff = False
         self.__b_canbearoff = False
-
-    def get_player(self, color):
-        """Returns the winning player based on the color."""
-
-        assert color == 'w' or 'b'
-
-        return self.__w_player if color == 'w' else self.__b_player
-
-    def roll_dice(self):
-        self.__dice = [random.randint(1, 6), random.randint(1, 6)]
-
-    def get_dice(self):
-        return self.__dice
 
     def letter(self, playerid, x):
         white_indices = ["0", "1", "2", "3", "4", "5", "6",
@@ -61,55 +49,137 @@ class Game:
             a = black_indices[x]
         return a
 
-    def get_state(self):
+    def get_done(self):
+        """Returns a tuple of which the first element is a boolean of the game
+        being over or not and the second element is the winner."""
+
+        points = self.__gameboard.get_board()
+        i = 0
+        for color in ['w', 'b']:
+            for point in points:
+                checkers = point.get_count()
+                if point.get_color() == color:
+                    i += checkers
+            if i < 1:
+                return (True, self.get_player(color))
+
+        return (False, None)
+
+    def get_observation(self):
         statevec = []
+        statevec.append(self.__dice[0])
+        statevec.append(self.__dice[1])
+        statevec.append(self.__w_hitted)
+        statevec.append(self.__b_hitted)
+        statevec.append(self.__w_bourne_off)
+        statevec.append(self.__b_bourne_off)
 
         for point in self.__gameboard.get_board():
             if point.get_color() == 'w':
+                statevec.append(1)
                 statevec.append(point.get_count())
-            if point.get_color() == 'b':
-                statevec.append(16+point.get_count())
+            elif point.get_color() == 'b':
+                statevec.append(2)
+                statevec.append(point.get_count())
             else:
+                statevec.append(0)
                 statevec.append(0)
         return statevec
 
-    def get_state2(self):
-        statestr = str(self.__dice[0]) + str(self.__dice[1])
+    def play(self, actionint):
+        """Given a tuple of dice rolls, return the set of possible moves.
 
-        for point in self.__gameboard.get_board():
-            if point.get_color() == 'w':
-                statestr += self.letter("w", point.get_count())
-            if point.get_color() == 'b':
-                statestr += self.letter("b", point.get_count())
-            else:
-                statestr += "0"
-        return statestr
+        1) Move: move forward from one point to another, as long as the target
+                 point is empty or having the same color as the source point.
+        2) Hit: To move to a point occupied by an opposing blot and put the blot
+                on the bar.
+        3) Reenter: To move a checker from the bar to an open point in the
+                    opponent's home board according to a roll of the dice. When
+                    a player has a checker on the bar, this is his only legal
+                    move.
+        4) Reenter_hit: To move a checker from the bar to an open point in the
+                    opponent's home board according to a roll of the dice. When
+                    a player has a checker on the bar, this is his only legal
+                    move.
+        5) Bear off: To remove a checker from the board according to a roll of
+                     the dice after all of your checkers have been brought into
+                     your home board."""
 
-    def get_state3(self, adice):
-        statestr = str(adice)
+        playerid = 1+int(actionint/2880)
+        remainder = actionint % 2880  # actionint-2880*(playerid-1)
+        actionid = 1+int(remainder/576)
+        sourcedest = remainder % 576
+        sourceid = int(sourcedest/24)
+        destid = sourcedest % 24
 
-        for point in self.__gameboard.get_board():
-            if point.get_color() == 'w':
-                statestr += self.letter("w", point.get_count())
-            if point.get_color() == 'b':
-                statestr += self.letter("b", point.get_count())
-            else:
-                statestr += "0"
-        return statestr
+        invalid_action = True
 
-    def get_state4(self):
-        state = [[self.__w_bourne_off, self.__b_bourne_off],
-                 [self.__w_hitted, self.__b_hitted]]
-        board = self.__gameboard.get_board()
-        for point in board:
-            if point.get_color() == None:
-                color = 0
-            elif point.get_color() == 'w':
-                color = 1
-            elif point.get_color() == 'b':
-                color = 2
-            state.append([color, point.get_count()])
-        return state
+        #action = str(actionint)
+        if playerid == "1":  # player == self.__w_player:
+            if self.__w_hitted > 0:
+                if (actionid == 3):   # "reenter"):
+                    self.__w_hitted = self.__w_hitted - 1
+                    (self.__gameboard).update_reenter("w", sourceid)
+                    invalid_action = False
+                    reward = 24-sourceid
+                if (actionid == 4):  # "reenter_hit"):
+                    self.__w_hitted = self.__w_hitted - 1
+                    self.__b_hitted = self.__b_hitted + 1
+                    (self.__gameboard).update_reenterhit("w", sourceid)
+                    invalid_action = False
+                    reward = 24
+            else:  # elif self.__w_hitted == 0:
+                if (actionid == 1):  # "move"):
+                    (self.__gameboard).update_move("w", sourceid, destid)
+                    invalid_action = False
+                    reward = sourceid-destid  # absolute value
+                if (actionid == 2):  # "hit"):
+                    self.__b_hitted = self.__b_hitted + 1
+                    (self.__gameboard).update_hit("w", sourceid, destid)
+                    invalid_action = False
+                    reward = sourceid + 1
+                if (actionid == 5):  # "bearoff"):
+                    (self.__gameboard).update_bearoff("w", sourceid)
+                    self.__w_bourne_off += 1
+                    invalid_action = False
+                    reward = sourceid + 1
+
+        elif playerid == "2":  # player == self.__b_player:
+            if self.__b_hitted > 0:
+                if (actionid == 3):   # "reenter"):
+                    self.__b_hitted = self.__b_hitted - 1
+                    (self.__gameboard).update_reenter("b", sourceid)
+                    invalid_action = False
+                    reward = sourceid+1
+                if (actionid == 4):  # "reenter_hit"):
+                    self.__w_hitted = self.__w_hitted + 1
+                    self.__b_hitted = self.__b_hitted - 1
+                    (self.__gameboard).update_reenterhit("b", sourceid)
+                    invalid_action = False
+                    reward = 24
+            else:  # elif self.__w_hitted == 0:
+                if (actionid == 1):  # "move"):
+                    (self.__gameboard).update_move("b", sourceid, destid)
+                    invalid_action = False
+                    reward = destid-sourceid  # absolute value
+                if (actionid == 2):  # "hit"):
+                    self.__w_hitted = self.__w_hitted + 1
+                    (self.__gameboard).update_hit("b", sourceid, destid)
+                    invalid_action = False
+                    reward = 24-sourceid
+                if (actionid == 5):  # "bearoff"):
+                    (self.__gameboard).update_bearoff("b", sourceid)
+                    self.__b_bourne_off += 1
+                    invalid_action = False
+                    reward = 24-sourceid
+
+        if invalid_action == "1":
+            reward = -1000
+            all_actions = self.get_actions("w", self.__dice[0])
+            action = random.choice(all_actions)
+            self.play(action)
+
+        return reward, self.get_observation(), self.get_done()
 
     def update_board(self, player, action):
         """Given a tuple of dice rolls, return the set of possible moves.
@@ -122,7 +192,11 @@ class Game:
                     opponent's home board according to a roll of the dice. When
                     a player has a checker on the bar, this is his only legal
                     move.
-        4) Bear off: To remove a checker from the board according to a roll of
+        4) Reenter_hit: To move a checker from the bar to an open point in the
+                    opponent's home board according to a roll of the dice. When
+                    a player has a checker on the bar, this is his only legal
+                    move.
+        5) Bear off: To remove a checker from the board according to a roll of
                      the dice after all of your checkers have been brought into
                      your home board."""
 
@@ -166,6 +240,10 @@ class Game:
 
     def get_actions(self, player, roll):
         """Given a tuple of dice rolls, return the set of possible moves.
+        enumerate actions as a number: XABCDE  where X player type 1 for white 2 for black 
+        A: action type BC source DE destination
+        eg  1903911 means move from point 3 to point 11
+        for reenter and reenterhit last 2 digits unimportant
 
         1) Move: move forward from one point to another, as long as the target
                  point is empty or having the same color as the source point.
@@ -175,7 +253,123 @@ class Game:
                     opponent's home board according to a roll of the dice. When
                     a player has a checker on the bar, this is his only legal
                     move.
-        4) Bear off: To remove a checker from the board according to a roll of
+        4) Reenter_hit: To remove a checker from the board according to a roll of
+                     the dice after all of your checkers have been brought into
+                     your home board.
+        5) Bear off: To remove a checker from the board according to a roll of
+                     the dice after all of your checkers have been brought into
+                     your home board."""
+
+        points = self.__gameboard.get_board()
+
+        w_indices = []
+        b_indices = []
+        empty_indices = []
+        for index, point in enumerate(points):
+            if point.get_color() == 'w':
+                w_indices.append(index)
+            if point.get_color() == 'b':
+                b_indices.append(index)
+            else:
+                empty_indices.append(index)
+
+        w_home_board = max(w_indices) < 6
+        b_home_board = min(b_indices) > 17
+        if w_home_board and (self.__w_hitted == 0):
+            self.__w_canbearoff = True
+        if b_home_board and (self.__b_hitted == 0):
+            self.__b_canbearoff = True
+
+        actions = []
+        rewards = []
+        if player == "w":
+            if self.__w_hitted > 0:
+                if (24-roll) in empty_indices:
+                    actionstr = 576*2 + (24-roll)*24
+                    actions.append(actionstr)
+                    #actions.append(('reenter', 24-roll))
+                    rewards.append(roll)
+                elif ((24-roll) in b_indices) and ((points[24-roll]).get_count() < 2):
+                    actionstr = 576*3 + (24-roll)*24
+                    actions.append(actionstr)
+                    #actions.append(('reenter_hit', 24-roll))
+                    rewards.append(24)
+                return actions, rewards
+
+            #  case (self.__w_hitted == 0):
+            for index in w_indices:
+                if (index-roll) in (w_indices + empty_indices):
+                    actionstr = index*24 + (index-roll)
+                    actions.append(actionstr)
+                    #actions.append(('move', index, index - roll))
+                    rewards.append(roll)
+                if ((index-roll) in b_indices) and ((points[index-roll]).get_count() < 2):
+                    actionstr = 576*1 + index*24 + (index-roll)
+                    actions.append(actionstr)
+                    #actions.append(('hit', index, index - roll))
+                    rewards.append(roll+index)
+                if (self.__w_canbearoff) and (index < roll):
+                    actionstr = 576*4 + index*24
+                    actions.append(actionstr)
+                    #actions.append(('bearoff', index))
+                    rewards.append(index+1)
+                return actions, rewards
+
+            # Black Player
+        if player == "b":  # self.__b_player:
+            if self.__b_hitted > 0:
+                if (roll-1) in empty_indices:
+                    actionstr = 2880 + 576*2 + (roll-1)*24
+                    actions.append(actionstr)
+                    #actions.append(('reenter', roll-1))
+                    rewards.append(roll)
+                elif ((roll-1) in w_indices) and ((points[roll-1]).get_count() < 2):
+                    actionstr = 2880 + 576*3 + (roll-1)*24
+                    actions.append(actionstr)
+                    #actions.append(('reenter_hit', roll-1))
+                    rewards.append(24)
+                return actions, rewards
+
+            #  case (self.__b_hitted == 0):
+            for index in b_indices:
+                if (index+roll) in (b_indices + empty_indices):
+                    actionstr = 2880 + index*24 + (index+roll)
+                    actions.append(actionstr)
+                    #actions.append(('move', index, index + roll))
+                    rewards.append(roll)
+                if ((index+roll) in w_indices) and ((points[index+roll]).get_count() < 2):
+                    actionstr = 2880 + 576*1 + index*24 + (index+roll)
+                    actions.append(actionstr)
+                    #actions.append(('hit', index, index + roll))
+                    rewards.append(roll+24-index)
+                if (self.__b_canbearoff) and ((23-index) < roll):
+                    actionstr = 2880 + 576*4 + index*24
+                    actions.append(actionstr)
+                    #actions.append(('bearoff', index))
+                    rewards.append(24-index)
+                return actions, rewards
+
+        return actions, rewards
+
+    def get_actions2(self, player, roll):
+        """Given a tuple of dice rolls, return the set of possible moves.
+        enumerate actions as a number: XABCDE  where X player type 1 for white 2 for black 
+        A: action type BC source DE destination
+        eg  1903911 means move from point 3 to point 11
+        for reenter and reenterhit last 2 digits unimportant
+
+        1) Move: move forward from one point to another, as long as the target
+                 point is empty or having the same color as the source point.
+        2) Hit: To move to a point occupied by an opposing blot and put the blot
+                on the bar.
+        3) Reenter: To move a checker from the bar to an open point in the
+                    opponent's home board according to a roll of the dice. When
+                    a player has a checker on the bar, this is his only legal
+                    move.
+        4) Reenter_hit: To remove a checker from the board according to a roll of
+                     the dice after all of your checkers have been brought into
+                     your home board.
+        5) Bear off: To remove a checker from the board according to a roll of
                      the dice after all of your checkers have been brought into
                      your home board."""
 
@@ -204,23 +398,33 @@ class Game:
         if player == self.__w_player:
             if self.__w_hitted > 0:
                 if (24-roll) in empty_indices:
-                    actions.append(('reenter', 24-roll))
+                    actionstr = 30000 + (24-roll)*100
+                    actions.append(actionstr)
+                    #actions.append(('reenter', 24-roll))
                     rewards.append(roll)
                 elif ((24-roll) in b_indices) and ((points[24-roll]).get_count() < 2):
-                    actions.append(('reenter_hit', 24-roll))
+                    actionstr = 40000 + (24-roll)*100
+                    actions.append(actionstr)
+                    #actions.append(('reenter_hit', 24-roll))
                     rewards.append(24)
                 return actions, rewards
 
             #  case (self.__w_hitted == 0):
             for index in w_indices:
                 if (index-roll) in (w_indices + empty_indices):
-                    actions.append(('move', index, index - roll))
+                    actionstr = 10000 + index*100 + (index-roll)
+                    actions.append(actionstr)
+                    #actions.append(('move', index, index - roll))
                     rewards.append(roll)
                 if ((index-roll) in b_indices) and ((points[index-roll]).get_count() < 2):
-                    actions.append(('hit', index, index - roll))
+                    actionstr = 20000 + index*100 + (index-roll)
+                    actions.append(actionstr)
+                    #actions.append(('hit', index, index - roll))
                     rewards.append(roll+index)
                 if (self.__w_canbearoff) and (index < roll):
-                    actions.append(('bearoff', index))
+                    actionstr = 50000 + index*100
+                    actions.append(actionstr)
+                    #actions.append(('bearoff', index))
                     rewards.append(index+1)
                 return actions, rewards
 
@@ -228,165 +432,87 @@ class Game:
         if player == self.__b_player:
             if self.__b_hitted > 0:
                 if (roll-1) in empty_indices:
-                    actions.append(('reenter', roll-1))
+                    actionstr = 30000 + (roll-1)*100
+                    actions.append(actionstr)
+                    #actions.append(('reenter', roll-1))
                     rewards.append(roll)
                 elif ((roll-1) in w_indices) and ((points[roll-1]).get_count() < 2):
-                    actions.append(('reenter_hit', roll-1))
+                    actionstr = 40000 + (roll-1)*100
+                    actions.append(actionstr)
+                    #actions.append(('reenter_hit', roll-1))
                     rewards.append(24)
                 return actions, rewards
 
             #  case (self.__b_hitted == 0):
             for index in b_indices:
                 if (index+roll) in (b_indices + empty_indices):
-                    actions.append(('move', index, index + roll))
+                    actionstr = 10000 + index*100 + (index+roll)
+                    actions.append(actionstr)
+                    #actions.append(('move', index, index + roll))
                     rewards.append(roll)
                 if ((index+roll) in w_indices) and ((points[index+roll]).get_count() < 2):
-                    actions.append(('hit', index, index + roll))
+                    actionstr = 20000 + index*100 + (index+roll)
+                    actions.append(actionstr)
+                    #actions.append(('hit', index, index + roll))
                     rewards.append(roll+24-index)
                 if (self.__b_canbearoff) and ((23-index) < roll):
-                    actions.append(('bearoff', index))
+                    actionstr = 50000 + index*100
+                    actions.append(actionstr)
+                    #actions.append(('bearoff', index))
                     rewards.append(24-index)
                 return actions, rewards
 
         return actions, rewards
 
-    def get_board(self):
-        return self.__gameboard.get_board()
+    def print_observation(self):
+        # point1 color, point1 count, point2 color, point2 count, . . . point24 color, point24 count]
+        state = self.get_observation()
+        max_picese_point = max(state)
+        state = zip(state[::2], state[1::2])
+        state = list(state)
+        up_side = list()  # Max number of pieces in point
+        buttom_side = list()
+        for i in range(3, int(3+(len(state)-3)/2)):
+            up_side.append(state[i])
+        for i in range(int(3+(len(state)-3)/2), len(state)):
+            buttom_side.append(state[i])
+        board = list()
+        up_side.reverse()
+        board.append('  ---------------------------------------------------- ')
+        board.append(
+            ' |12  11  10  9   8   7   |  | 6   5   4   3   2   1  | ')
+        board.append(' |----------------------------------------------------|')
 
-    # TODO: what is the use of this?
-    # def is_over(self, board):
-    #     """Returns a tuple of which the first element is a boolean of the game
-    #     being over or not and the second element is the winner."""
+        for i in range(0, max_picese_point):
+            point = list()
+            for item in up_side:
+                if i < item[1]:
+                    point.append('w' if item[0] == 1 else 'b')
+                else:
+                    point.append(' ')
+            board.append(
+                ' |{}   {}   {}   {}   {}   {}   |  | {}   {}   {}   {}   {}   {}  | '.format(*point))
+        board.append('  ---------------------------------------------------- ')
 
-    #     i = 0
-    #     for color in ['w', 'b']:
-    #         for point in board.get_board():
-    #             checkers = point.get_checkers()
-    #             if checkers[0] == color:
-    #                 i += point.checkers[1]
-    #         if i < 1:
-    #             return (True, self.get_player(color))
+        for i in range(0, max_picese_point):
+            point = list()
+            for item in buttom_side:
+                if max_picese_point - item[1] <= i:
+                    point.append('w' if item[0] == 1 else 'b')
+                else:
+                    point.append(' ')
+            board.append(
+                ' |{}   {}   {}   {}   {}   {}   |  | {}   {}   {}   {}   {}   {}  | '.format(*point))
+        board.append(' |----------------------------------------------------|')
+        board.append(
+            ' |13  14  15  16  17  18  |  | 19  20  21  22  23  24 | ')
+        board.append('  ---------------------------------------------------- ')
+        board.append('Dice 1: {}'.format(state[0][0]))
+        board.append('Dice 2: {}'.format(state[0][1]))
+        board.append('White hitted: {}'.format(state[1][0]))
+        board.append('Black hitted: {}'.format(state[1][1]))
+        board.append('white bourne off: {}'.format(state[2][0]))
+        board.append('Black bourne off: {}'.format(state[2][1]))
 
-    #     return (False, None)
-
-    def get_done(self):
-        """Returns a tuple of which the first element is a boolean of the game
-        being over or not and the second element is the winner."""
-
-        points = self.__gameboard.get_board()
-        i = 0
-        for color in ['w', 'b']:
-            for point in points:
-                checkers = point.get_color()
-                if checkers[0] == color:
-                    i += point.get_count()
-            if i < 1:
-                return (True, self.get_player(color))
-
-        return (False, None)
-
-    # TODO: what is the use of this?
-    # def get_reward(self, action, state=None):
-    #     """Unnecessary as reward computed inside get_actions"""
-
-    #     board = self.board if state is None else state
-
-    #     # For player1
-    #     before_pip_count1 = 0
-    #     for index, point in enumerate(board):
-    #         if point[0] == 1:
-    #             before_pip_count1 += (point[1] * (24 - index))
-    #     # For player2
-    #     before_pip_count2 = 0
-    #     for index, point in enumerate(board.flip(axis=0)):
-    #         if point[0] == 2:
-    #             before_pip_count2 += (point[1] * (24 - index))
-
-    #     before = before_pip_count1 - before_pip_count2
-
-    #     next_board = do_action(board, action)
-
-    #     after_pip_count1 = 0
-    #     for index, point in enumerate(next_board):
-    #         if point[0] == 1:
-    #             after_pip_count1 += (point[1] * (24 - index))
-    #     # For player2
-    #     after_pip_count2 = 0
-    #     for index, point in enumerate(next_board.flip(axis=0)):
-    #         if point[0] == 2:
-    #             before_pip_count2 += (point[1] * (24 - index))
-
-    #     after = after_pip_count1 - after_pip_count2
-
-    #     return after - before
-
-# TODO: Is this supposed to be a method of the game object? Otherwise,
-# it cannot work!
-###
-# Code for Sarsa Training
-# def train(agent_train, opponent, maxmove=1000, numgames=100000):
-#     """Trains a sarsa agent (white player) against a given opponent."""
-
-#     #pretraining = 10000
-#     for i in range(numgames):
-#         if i % 1000 == 0:
-#             print("Training Game: " + str(i))
-
-#         gamei = Game(agent_train, opponent)
-#         num_move = 0
-#         while (num_move<maxmove) and (not gamei.is_over()):
-#             gamei.roll_dice()
-#             curstate = gamei.get_state3(self.__dice[0])
-
-#             possible_actions, their_rewards = gamei.get_actions(agent_train, self.__dice[0])
-#             curaction, action_index = agent_train.chooseAction(curstate, possible_actions)
-#             gamei.update_board(agent_train, curaction)
-#             reward1 = their_rewards[action_index]
-#             agent_train.learn(curstate, curaction, reward, nextstate, nextaction)
-
-#             if not gamei.is_over():
-#                 nextstate = gamei.get_state3(self.__dice[1])
-#                 possible_actions, their_rewards = gamei.get_actions(agent_train, self.__dice[1])
-#                 nextaction, action_index = agent_train.chooseAction(curstate, possible_actions)
-#                 gamei.update_board(agent_train, nextaction)
-#                 reward2 = their_rewards[action_index]
-#                 agent_train.learn(curstate, curaction, reward1+reward2, nextstate, nextaction)
-
-#             if not gamei.is_over():
-#                 gamei.roll_dice()
-#                 possible_actions, their_rewards = gamei.get_actions(opponent, self.__dice[0])
-#                 oppaction, action_index = opponent.chooseAction(possible_actions)
-#                 gamei.update_board(opponent, oppaction)
-#                 possible_actions, their_rewards = gamei.get_actions(opponent, self.__dice[1])
-#                 oppaction, action_index = opponent.chooseAction(possible_actions)
-#                 gamei.update_board(opponent, oppaction)
-
-#             if not gamei.is_over():
-#                 gamei.roll_dice()
-#                 nextstate = gamei.get_state()
-#                 possible_actions = gamei.get_actions(agent_train, roll)
-#                 nextaction = agent_train.chooseAction(nextstate, possible_actions)
-#                 board.update(agent_train, nextaction)
-#                 agent_train.learn(curstate, curaction, reward, nextstate, nextaction)
-#             if not gamei.is_over():
-#                 gamei.roll_dice()
-#                 # opponent play
-#                 board.update(opponent, oppaction)
-
-#             # num_move++
-
-#                 # if gamei.is_over():
-
-
-#     return agent_train
-
-# TODO: We need to use a library such as pickle to store our agents
-# #SarsaPlayer = player("sarsa", False, )
-# sarsa_player = Sarsa()
-# player2 = RandomPlayer("Opponent", False)
-# trained_agent = train(sarsa_player, player2, 1000, 100000)
-
-# # write coeeficients (q values of trained agent) to a file
-
-# myGame = Game(1, 2)
-# print(myGame.get_state())
+        for line in board:
+            print(line)

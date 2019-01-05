@@ -17,7 +17,7 @@ class BackgammonEnv(gym.Env):
     to run the RL algorithm in. It is stochastic and fully-observable, with a
     bounded, discrete action domain.
 
-    The action space is discrete, ranging from 0 to 3124 for each permutation
+    The action space is discrete, ranging from 0 to 2880 for each permutation
     of this tuple: <Action type, Source index, Target index>
 
     The observation space is a 54-D vector:
@@ -47,7 +47,10 @@ class BackgammonEnv(gym.Env):
             item for sublist in [[2, 15], ]*24 for item in sublist])
         self.observation_space = spaces.Box(low=lower_bound, high=upper_bound,
                                             dtype=np.float32)
-        self.action_space = spaces.Discrete(5*25*25)
+        self.action_space = spaces.Discrete(5*24*24)
+
+        self.__time_elapsed = time.time()
+        self.__steps = 0
 
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -65,21 +68,13 @@ class BackgammonEnv(gym.Env):
             debugging, and sometimes learning)
         """
 
-        reward = self.game.play(action)
-        observation = self.game.get_observation()
-        done = self.game.get_done()
+        reward, observation, done = self.game.play(action)
         info = self.get_info()
         if done:
             self.reset()
+        self.steps += 1
 
         return (observation, reward, done, info)
-
-    def reset(self):
-        """Resets then returns the board."""
-
-        self.game = Game(agent='random')
-
-        return self.game.get_observation()
 
     def render(self):
         """Represent the board in the terminal. In this representation, x is
@@ -90,7 +85,8 @@ class BackgammonEnv(gym.Env):
     def get_info(self):
         """Returns useful info for debugging, etc."""
 
-        return {}
+        return {'time elapsed': time.time() - self.__time_elapsed,
+                'steps': self.__steps}
 
 
 class BackgammonPolicyEnv(BackgammonEnv):
@@ -104,7 +100,7 @@ class BackgammonPolicyEnv(BackgammonEnv):
     def reset(self):
         """Resets then returns the board."""
 
-        self.game = Game(agent='policy')
+        self.game = Game()
 
         return self.game.get_observation()
 
@@ -132,14 +128,18 @@ class BackgammonPolicyContinuousEnv(BackgammonPolicyEnv):
 
     def __init__(self):
         BackgammonPolicyEnv.__init__(self)
-        self.action_space = spaces.Box(low=0, high=3124, dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([-2880]),
+                                       high=np.array([2880]),
+                                       dtype=np.float32)
 
 
-class BackgammonHumanContinuousEnv(BackgammonPolicyEnv):
+class BackgammonHumanContinuousEnv(BackgammonHumanEnv):
     """
         Uses a continuous action space for the Backgammon Human environment.
     """
 
     def __init__(self):
         BackgammonPolicyEnv.__init__(self)
-        self.action_space = spaces.Box(low=0, high=3124, dtype=np.float32)
+        self.action_space = spaces.Box(low=np.array([-2880]),
+                                       high=np.array([2880]),
+                                       dtype=np.float32)
