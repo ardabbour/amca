@@ -7,7 +7,7 @@ register(
     entry_point='amca.envs:BackgammonPolicyEnv',
 )
 register(
-    id='BackgammonHuman-v1',
+    id='BackgammonHuman-v0',
     entry_point='amca.envs:BackgammonHumanEnv',
 )
 
