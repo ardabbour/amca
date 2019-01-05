@@ -70,7 +70,7 @@ if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--name', '-n',
                         help='Name of the agent to be trained.',
-                        default='amca',
+                        default='new_amca',
                         type=str)
     PARSER.add_argument('--log_directory', '-l',
                         help='Directory to store log files.',
