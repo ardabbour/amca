@@ -67,7 +67,8 @@ class BackgammonEnv(gym.Env):
             info (dict): contains auxiliary diagnostic information (helpful for
             debugging, and sometimes learning)
         """
-
+        print('NOWTHIS')
+        print(action)
         reward, observation, done = self.game.play(action)
         info = self.get_info()
         if done:

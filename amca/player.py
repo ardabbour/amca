@@ -24,9 +24,9 @@ class Player:
         """Define a new player object."""
 
         if policy == 'random':
-            self.__policy = lambda x: random.choice(x)
+            self.__policy = lambda x: (random.choice(x), None)
         elif policy == 'human':
-            self.__policy = lambda x: self.human_play(x)
+            self.__policy = lambda x: (self.human_play(x), None)
         else:
             if algorithm.lower() == 'a2c':
                 algorithm = A2C
@@ -49,7 +49,7 @@ class Player:
             else:
                 raise ValueError('Unidentified algorithm chosen')
 
-            self.__policy = algorithm.load(policy)
+            self.__policy = algorithm.load(policy).predict
 
     def get_policy(self):
         return self.__policy
@@ -84,7 +84,7 @@ class Player:
             self.__policy = algorithm.load(policy)
 
     def human_play(self, observation, valid_actions):
-        print(observation)  # TODO
+        # print(observation)  # TODO
         print(valid_actions)
         action = input('What action would you like to do?')
         return action
@@ -94,5 +94,5 @@ class Player:
         if self.__policy == self.human_play:
             return self.human_play(observation, valid_actions)
 
-        action, _ = self.__policy.predict(observation)
+        action, _ = self.__policy(observation)
         return action

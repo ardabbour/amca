@@ -25,11 +25,10 @@ def roll_dice():
 class Game:
     """Defines a backgammon game object."""
 
-    def __init__(self, b_player=Player(policy='random')):
+    def __init__(self, b_player=Player(policy='random'), higher_starts=True):
         self.__w_player = "w"
         self.__b_player = b_player
         self.__gameboard = Board()
-        self.__dice = roll_dice()
 
         self.__w_bourne_off = 0
         self.__b_bourne_off = 0
@@ -37,6 +36,39 @@ class Game:
         self.__b_hitted = 0
         self.__w_canbearoff = False
         self.__b_canbearoff = False
+
+        w_toss = roll_dice()
+        b_toss = roll_dice()
+        while sum(w_toss) == sum(b_toss):
+            w_toss = roll_dice()
+            b_toss = roll_dice()
+        if higher_starts:
+            if sum(w_toss) > sum(b_toss):
+                self.__turn = 1
+            else:
+                self.__turn = 2
+        else:
+            if sum(w_toss) < sum(b_toss):
+                self.__turn = 1
+            else:
+                self.__turn = 2
+
+        if self.__turn == 2:
+            self.play_opponent()
+        else:
+            self.__dice = roll_dice()
+
+    def play_opponent(self):
+        self.__dice = roll_dice()
+        while self.__turn == 2:
+            self.play(self.__b_player.play(
+                self.get_observation(),
+                self.get_actions(self.__b_player, self.__dice)))
+            # TODO check if turn is over and mark turn accordingly. For now,
+            # just play one dice.
+
+        self.__turn == 1
+        self.__dice = roll_dice()
 
     def letter(self, playerid, x):
         white_indices = ["0", "1", "2", "3", "4", "5", "6",
@@ -105,6 +137,8 @@ class Game:
                      the dice after all of your checkers have been brought into
                      your home board."""
 
+        print('THIS')
+        print(actionint)
         playerid = 1+int(actionint/2880)
         remainder = actionint % 2880  # actionint-2880*(playerid-1)
         actionid = 1+int(remainder/576)
@@ -116,6 +150,7 @@ class Game:
 
         #action = str(actionint)
         if playerid == "1":  # player == self.__w_player:
+            assert self.__turn == 1  # sanity check
             if self.__w_hitted > 0:
                 if (actionid == 3):   # "reenter"):
                     self.__w_hitted = self.__w_hitted - 1
@@ -145,6 +180,7 @@ class Game:
                     reward = sourceid + 1
 
         elif playerid == "2":  # player == self.__b_player:
+            assert self.__turn == 2  # sanity check
             if self.__b_hitted > 0:
                 if (actionid == 3):   # "reenter"):
                     self.__b_hitted = self.__b_hitted - 1
@@ -173,11 +209,18 @@ class Game:
                     invalid_action = False
                     reward = 24-sourceid
 
-        if invalid_action == "1":
+        if invalid_action == 1:
             reward = -1000
             all_actions = self.get_actions("w", self.__dice[0])
             action = random.choice(all_actions)
+            print('NOWNOWTHIS')
+            print(action)
             self.play(action)
+
+        # TODO check if turn is over and mark turn accordingly. For now,
+        # just play one dice.
+        self.__turn == 2
+        self.play_opponent()
 
         return reward, self.get_observation(), self.get_done()
 
@@ -470,18 +513,20 @@ class Game:
         max_picese_point = max(state)
         state = zip(state[::2], state[1::2])
         state = list(state)
-        up_side = list()  # Max number of pieces in point
+        up_side = list()
         buttom_side = list()
         for i in range(3, int(3+(len(state)-3)/2)):
-            up_side.append(state[i])
-        for i in range(int(3+(len(state)-3)/2), len(state)):
             buttom_side.append(state[i])
+        for i in range(int(3+(len(state)-3)/2), len(state)):
+            up_side.append(state[i])
+        buttom_side.reverse()
         board = list()
-        up_side.reverse()
-        board.append('  ---------------------------------------------------- ')
         board.append(
-            ' |12  11  10  9   8   7   |  | 6   5   4   3   2   1  | ')
-        board.append(' |----------------------------------------------------|')
+            '  -------------------------------------------------------------- ')
+        board.append(
+            ' |13  14  15  16   17   18   |    | 19   20   21   22   23   24  | ')
+        board.append(
+            ' |---------------------------------------------------------------|')
 
         for i in range(0, max_picese_point):
             point = list()
@@ -491,8 +536,9 @@ class Game:
                 else:
                     point.append(' ')
             board.append(
-                ' |{}   {}   {}   {}   {}   {}   |  | {}   {}   {}   {}   {}   {}  | '.format(*point))
-        board.append('  ---------------------------------------------------- ')
+                ' |{}   {}   {}   {}    {}    {}    |    | {}    {}    {}    {}    {}    {}   | '.format(*point))
+        board.append(
+            '  --------------------------------------------------------------- ')
 
         for i in range(0, max_picese_point):
             point = list()
@@ -502,11 +548,13 @@ class Game:
                 else:
                     point.append(' ')
             board.append(
-                ' |{}   {}   {}   {}   {}   {}   |  | {}   {}   {}   {}   {}   {}  | '.format(*point))
-        board.append(' |----------------------------------------------------|')
+                ' |{}   {}   {}    {}    {}    {}    |    | {}    {}    {}    {}    {}    {}  | '.format(*point))
         board.append(
-            ' |13  14  15  16  17  18  |  | 19  20  21  22  23  24 | ')
-        board.append('  ---------------------------------------------------- ')
+            ' |---------------------------------------------------------------|')
+        board.append(
+            ' |12  11  10   9    8    7    |    | 6    5    4    3    2    1  | ')
+        board.append(
+            '  --------------------------------------------------------------- ')
         board.append('Dice 1: {}'.format(state[0][0]))
         board.append('Dice 2: {}'.format(state[0][1]))
         board.append('White hitted: {}'.format(state[1][0]))
