@@ -35,9 +35,6 @@ class Board:
         self.__hit = {'w': 0, 'b': 0}
         self.__bourne_off = {'w': 0, 'b': 0}
 
-        #self.__whome = [0,1,2,3,4,5]
-        #self.__bhome = [18,19,20,21,22,23]
-
     ######################### GET/SET METHODS ########################
     def get_board(self):
         """Get method for the board."""

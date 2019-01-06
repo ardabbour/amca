@@ -1,14 +1,30 @@
 # -*- coding: utf-8 -*-
 #!/usr/bin/env python3
+"""
+    Amca: The RL-Based Backgammon Agent
+    https://github.com/ardabbour/amca/
+
+    Abdul Rahman Dabbour, Omid Khorsand Kazemy, Yusuf Izmirlioglu
+    Cognitive Robotics Laboratory
+    Faculty of Engineering and Natural Sciences
+    Sabanci University
+
+    This file contains the classes required to play backgammon.
+"""
 import time
 
 import gym
-from gym import wrappers
-import numpy as np
 from gym import spaces
+import numpy as np
 
-from amca.game import Game, roll_dice
-from amca.player import Player
+from amca.envs.board import Board
+from amca.agents import RandomAgent, PolicyAgent, HumanAgent
+
+
+def roll_dice():
+    dice = [np.random.randint(1, 6), np.random.randint(1, 6)]
+    if dice[0] == dice[1]:
+        return [dice[0], ]*4
 
 
 class BackgammonEnv(gym.Env):
@@ -49,8 +65,50 @@ class BackgammonEnv(gym.Env):
                                             dtype=np.float32)
         self.action_space = spaces.Discrete(5*24*24)
 
-        self.__time_elapsed = time.time()
-        self.__steps = 0
+        # Debug info
+        self.__invalid_actions_taken = 0
+        self.__time_elapsed = 0
+
+        # Initialize game vars
+        self.__gameboard = Board()
+        self.__w_hitted = 0
+        self.__b_hitted = 0
+        self.__w_bourne_off = 0
+        self.__b_bourne_off = 0
+        self.__w_canbearoff = False
+        self.__b_canbearoff = False
+
+        # The higher dice roll starts
+        w_toss = roll_dice()
+        b_toss = roll_dice()
+        while sum(w_toss) == sum(b_toss):
+            w_toss = roll_dice()
+            b_toss = roll_dice()
+        if sum(w_toss) > sum(b_toss):
+            self.__turn = 1
+        else:
+            self.__turn = 2
+
+        # Start game
+        self.__dice = roll_dice()
+        if self.__turn == 2:
+            self.play_opponent()
+
+    # TODO
+    def get_valid_actions(self):
+        """Returns a NUMPY array of NUMPY arrays as such:
+        [
+            [Valid action 1, Valid action 2, ...], # Dice 1 valid actions
+            [Valid action 1, Valid action 2, ...], # Dice 2 valid actions
+            .
+            .
+        ]
+        """
+
+    # TODO
+    def act(self, action):
+        """Takes an INTEGER as defined in the action space and modifies the
+        board as neccessary, including the checkers hit and bourne off."""
 
     def step(self, action):
         """Run one timestep of the environment's dynamics. When end of
@@ -67,80 +125,236 @@ class BackgammonEnv(gym.Env):
             info (dict): contains auxiliary diagnostic information (helpful for
             debugging, and sometimes learning)
         """
-        print('NOWTHIS')
-        print(action)
-        reward, observation, done = self.game.play(action)
+        # Case of playing out of turn
+        if self.__turn != 1:
+            raise ValueError('Agent playing out of turn!')
+
+        valid_actions = self.get_valid_actions()  # TODO
+        action_is_valid = False
+
+        # Case of no valid actions
+        if not valid_actions:
+            self.__turn = 2
+            self.__dice = roll_dice()
+            self.play_opponent()
+            reward = 0
+            observation = self.get_observation()
+            done = self.get_done()
+            info = self.get_info()
+            if done:
+                self.reset()
+            return (observation, reward, done, info)
+
+        # Else
+        for index, action_set in enumerate(valid_actions):
+            if action in action_set:
+                action_is_valid = True
+                reward = self.act(action)  # TODO
+                del self.__dice[index]
+                break
+        if not action_is_valid:
+            reward = -1000
+            action = np.random.choice(valid_actions.flatten())
+            for index, action_set in enumerate(valid_actions):
+                if action in action_set:
+                    self.act(action)
+                    del self.__dice[index]
+                    break
+            observation = self.get_observation()
+            done = self.get_done()
+            info = self.get_info()
+            if done:
+                self.reset()
+
+        if not self.__dice:
+            self.__turn = 2
+            self.__dice = roll_dice()
+            self.play_opponent()
+
+        observation = self.get_observation()
+        done = self.get_done()
         info = self.get_info()
         if done:
             self.reset()
-        self.steps += 1
 
         return (observation, reward, done, info)
 
-    def render(self):
+    def render(self, mode='human'):
         """Represent the board in the terminal. In this representation, x is
         player1 and y is player 2."""
 
-        self.game.print_observation()
+        if mode != 'human':
+            return
+        state = self.get_observation()
+        max_picese_point = max(state)
+        state = zip(state[::2], state[1::2])
+        state = list(state)
+        up_side = list()
+        buttom_side = list()
+        for i in range(3, int(3+(len(state)-3)/2)):
+            buttom_side.append(state[i])
+        for i in range(int(3+(len(state)-3)/2), len(state)):
+            up_side.append(state[i])
+        buttom_side.reverse()
+        board = list()
+        board.append(
+            '  -------------------------------------------------------------- ')
+        board.append(
+            ' |13  14  15  16   17   18   |    | 19   20   21   22   23   24  | ')
+        board.append(
+            ' |---------------------------------------------------------------|')
+
+        for i in range(0, max_picese_point):
+            point = list()
+            for item in up_side:
+                if i < item[1]:
+                    point.append('w' if item[0] == 1 else 'b')
+                else:
+                    point.append(' ')
+            board.append(
+                ' |{}   {}   {}   {}    {}    {}    |    | {}    {}    {}    {}    {}    {}   | '.format(*point))
+        board.append(
+            '  --------------------------------------------------------------- ')
+
+        for i in range(0, max_picese_point):
+            point = list()
+            for item in buttom_side:
+                if max_picese_point - item[1] <= i:
+                    point.append('w' if item[0] == 1 else 'b')
+                else:
+                    point.append(' ')
+            board.append(
+                ' |{}   {}   {}    {}    {}    {}    |    | {}    {}    {}    {}    {}    {}  | '.format(*point))
+        board.append(
+            ' |---------------------------------------------------------------|')
+        board.append(
+            ' |12  11  10   9    8    7    |    | 6    5    4    3    2    1  | ')
+        board.append(
+            '  --------------------------------------------------------------- ')
+        board.append('Dice 1: {}'.format(state[0][0]))
+        board.append('Dice 2: {}'.format(state[0][1]))
+        board.append('White hitted: {}'.format(state[1][0]))
+        board.append('Black hitted: {}'.format(state[1][1]))
+        board.append('white bourne off: {}'.format(state[2][0]))
+        board.append('Black bourne off: {}'.format(state[2][1]))
+
+        for line in board:
+            print(line)
+
+    def reset(self):
+        # Initialize game vars
+        self.__gameboard = Board()
+        self.__w_hitted = 0
+        self.__b_hitted = 0
+        self.__w_bourne_off = 0
+        self.__b_bourne_off = 0
+        self.__w_canbearoff = False
+        self.__b_canbearoff = False
+
+        # The higher dice roll starts
+        w_toss = roll_dice()
+        b_toss = roll_dice()
+        while sum(w_toss) == sum(b_toss):
+            w_toss = roll_dice()
+            b_toss = roll_dice()
+        if sum(w_toss) > sum(b_toss):
+            self.__turn = 1
+        else:
+            self.__turn = 2
+
+        # Start game
+        self.__dice = roll_dice()
+        if self.__turn == 2:
+            self.play_opponent()
+
+        return self.get_observation()
+
+    def get_observation(self):
+        statevec = []
+        statevec.append(self.__dice[0])
+        statevec.append(self.__dice[1])
+        statevec.append(self.__w_hitted)
+        statevec.append(self.__b_hitted)
+        statevec.append(self.__w_bourne_off)
+        statevec.append(self.__b_bourne_off)
+
+        for point in self.__gameboard.get_board():
+            if point.get_color() == 'w':
+                statevec.append(1)
+                statevec.append(point.get_count())
+            elif point.get_color() == 'b':
+                statevec.append(2)
+                statevec.append(point.get_count())
+            else:
+                statevec.append(0)
+                statevec.append(0)
+        return statevec
+
+    def play_opponent(self):
+        # Case of playing out of turn
+        if self.__turn != 2:
+            raise ValueError('Opponent playing out of turn!')
+
+        # Case of no valid actions
+        valid_actions = self.get_valid_actions()  # TODO
+        if not valid_actions:
+            self.__turn = 1
+            self.__dice = roll_dice()
+            return
+
+        # Else
+        while self.__dice:
+            action = self.__opponent.make_decision(self.get_observation())
+            action_is_valid = False
+            for index, action_set in enumerate(valid_actions):
+                if action in action_set:
+                    action_is_valid = True
+                    self.act(action)  # TODO
+                    del self.__dice[index]
+                    break
+            if not action_is_valid:
+                action = np.random.choice(valid_actions.flatten())
+                for index, action_set in enumerate(valid_actions):
+                    if action in action_set:
+                        self.act(action)
+                        del self.__dice[index]
+                        break
+
+        self.__turn = 1
+        self.__dice = roll_dice()
 
     def get_info(self):
         """Returns useful info for debugging, etc."""
 
         return {'time elapsed': time.time() - self.__time_elapsed,
-                'steps': self.__steps}
+                'invalid actions taken': self.__invalid_actions_taken}
 
 
-class BackgammonPolicyEnv(BackgammonEnv):
+class BackgammonRandomOpponentEnv(BackgammonEnv):
     """
-        Uses a policy as the opponent for the Backgammon environment.
+        Uses a random agent as the opponent for the Backgammon environment.
     """
 
     def __init__(self):
+        self.__opponent = RandomAgent(self.action_space)
         BackgammonEnv.__init__(self)
 
-    def reset(self):
-        """Resets then returns the board."""
 
-        self.game = Game()
-
-        return self.game.get_observation()
-
-
-class BackgammonHumanEnv(BackgammonEnv):
+class BackgammonPolicyOpponentEnv(BackgammonEnv):
     """
-        Uses a human as the opponent for the Backgammon environment.
+        Uses a policy agent as the opponent for the Backgammon environment.
     """
 
     def __init__(self):
+        self.__opponent = PolicyAgent(algorithm='dqn', model='amca.pkl')
         BackgammonEnv.__init__(self)
 
-    def reset(self):
-        """Resets then returns the board."""
 
-        self.game = Game(agent='human')
-
-        return self.game.get_observation()
-
-
-class BackgammonPolicyContinuousEnv(BackgammonPolicyEnv):
+class BackgammonHumanOpponentEnv(BackgammonEnv):
     """
-        Uses a continuous action space for the Backgammon Policy environment.
+        Uses a human agent as the opponent for the Backgammon environment.
     """
 
     def __init__(self):
-        BackgammonPolicyEnv.__init__(self)
-        self.action_space = spaces.Box(low=np.array([-2880]),
-                                       high=np.array([2880]),
-                                       dtype=np.float32)
-
-
-class BackgammonHumanContinuousEnv(BackgammonHumanEnv):
-    """
-        Uses a continuous action space for the Backgammon Human environment.
-    """
-
-    def __init__(self):
-        BackgammonPolicyEnv.__init__(self)
-        self.action_space = spaces.Box(low=np.array([-2880]),
-                                       high=np.array([2880]),
-                                       dtype=np.float32)
+        self.__opponent = HumanAgent()
+        BackgammonEnv.__init__(self)

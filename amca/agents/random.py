@@ -12,22 +12,12 @@
     The Random agent takes an action randomly.
 """
 
-import numpy as np
-
 
 class RandomAgent:
-    def __init__(self):
-        self.__action_history = []
+    def __init__(self, action_space):
+        self.__action_space = action_space
 
-    def act(self, valid_actions):
+    def make_decision(self, _):
         """Returns a random action from a list of valid actions."""
 
-        action = np.random.choice(valid_actions)
-        self.__action_history.append(action)
-
-        return action
-
-    def get_action_history(self):
-        """Returns the action history of the agent."""
-
-        return self.__action_history
+        return self.__action_space.sample()
