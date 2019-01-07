@@ -76,31 +76,27 @@ class Game:
         while sum(w_toss) == sum(b_toss):
             w_toss = roll_dice()
             b_toss = roll_dice()
+
+        self.__dice = roll_dice()
         if sum(w_toss) > sum(b_toss):
             self.__turn = 1
-            self.__dice = roll_dice()
-
         else:
             self.__turn = 2
-            self.__dice = roll_dice()
             self.play_opponent()
-            self.__dice = roll_dice()
-
 
     def player_turn(self, actionint):
         """Takes an actionint from the Backgammon Environment, converts it to an
         action, processes the result of the action and returns the reward."""
 
         # Case of playing out of turn
-        # if self.__turn != 1:
-        #     raise ValueError('Agent playing out of turn!')
+        if self.__turn != 1:
+            raise ValueError('Agent playing out of turn!')
 
         # Case of no valid actions
         valid_actions, their_rewards = self.get_valid_actions()
         if not any(valid_actions):
             self.__turn = 2
             self.opponent_turn()
-            self.__dice = roll_dice()
             reward = 0
             return reward
 
@@ -116,8 +112,8 @@ class Game:
                 if not self.__dice:
                     self.__turn = 2
                     self.opponent_turn()
-                    self.__dice = roll_dice()
-                reward = their_rewards[index][np.where(action_set == action)[0]]
+                reward = their_rewards[index][np.where(
+                    action_set == action)[0]]
                 return reward
 
         # Case of choosing invalid action
@@ -129,7 +125,6 @@ class Game:
                 if not self.__dice:
                     self.__turn = 2
                     self.opponent_turn()
-                    self.__dice = roll_dice()
                 reward = -1000
                 return reward
 
@@ -144,6 +139,9 @@ class Game:
                 break
             self.play_opponent()
         self.__turn = 1
+        self.__dice = roll_dice()
+
+        return
 
     def play_opponent(self):
         """Plays a single dice of the opponent."""
