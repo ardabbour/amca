@@ -30,7 +30,8 @@ from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstm
 from stable_baselines.deepq import policies as dqn_policies
 from stable_baselines.ddpg import policies as ddpg_policies
 from stable_baselines.sac import policies as sac_policies
-from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.common import set_global_seeds
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines.results_plotter import load_results, ts2xy
 
 import amca
@@ -67,6 +68,30 @@ def plot_results(logdir, title, window):
     plt.savefig('{}_training_performance.pdf'.format(title))
 
 
+def make_env(algorithm, rank, seed=0):
+    """
+    Utility function for multiprocessed env.
+
+    :param env_id: (str) the environment ID
+    :param num_env: (int) the number of environment you wish to have in subprocesses
+    :param seed: (int) the inital seed for RNG
+    :param rank: (int) index of the subprocess
+    """
+
+    def _init():
+        if algorithm in [DDPG, GAIL, SAC]:
+            env = gym.make('BackgammonRandomContinuous-v0')
+        else:
+            env = gym.make('BackgammonRandomEnv-v0')
+        env.seed(seed + rank)
+
+        os.makedirs(ARGS.log_directory, exist_ok=True)
+        env = Monitor(env, ARGS.log_directory, allow_early_resets=True)
+        return env
+    set_global_seeds(seed)
+    return _init
+
+
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--name', '-n',
@@ -98,6 +123,10 @@ if __name__ == "__main__":
                         type=int)
     PARSER.add_argument('--graph', '-g',
                         help='Plot a performance graph of the training.',
+                        default=1,
+                        type=int)
+    PARSER.add_argument('--multiprocess', '-m',
+                        help='How many multiprocesses to use.',
                         default=1,
                         type=int)
 
@@ -155,15 +184,10 @@ if __name__ == "__main__":
     else:
         raise ValueError('Unidentified policy chosen')
 
-    if algorithm in [DDPG, GAIL, SAC]:
-        env = gym.make('BackgammonRandomContinuous-v0')
-    else:
-        env = gym.make('BackgammonRandomEnv-v0')
-    os.makedirs(ARGS.log_directory, exist_ok=True)
-    env = Monitor(env, ARGS.log_directory, allow_early_resets=True)
-    env = DummyVecEnv([lambda: env])
+    env = SubprocVecEnv([make_env(algorithm, i) for i in range(int(ARGS.multiprocess))])
 
     model = algorithm(policy, env, verbose=ARGS.verbose)
+
     model.learn(total_timesteps=ARGS.timesteps)
     model.save('{}'.format(ARGS.name))
 
