@@ -14,3 +14,7 @@ register(
     id='BackgammonRandomEnv-v0',
     entry_point='amca.envs:BackgammonRandomEnv',
 )
+register(
+    id='BackgammonRandomContinuousEnv-v0',
+    entry_point='amca.envs:BackgammonRandomContinuousEnv',
+)

@@ -59,7 +59,6 @@ def plot_results(logdir, title, window):
     y = movingAverage(y, window)
     # Truncate x
     x = x[len(x) - len(y):]
-    print(np.array(x).shape, np.array(y).shape)
     plt.plot(x, y)
     plt.xlabel('Timesteps')
     plt.ylabel('Mean Reward per {} timestep'.format(window))
@@ -156,7 +155,7 @@ if __name__ == "__main__":
         raise ValueError('Unidentified policy chosen')
 
     if algorithm in [DDPG, GAIL, SAC]:
-        env = gym.make('BackgammonRandomContinuous-v0')
+        env = gym.make('BackgammonRandomContinuousEnv-v0')
     else:
         env = gym.make('BackgammonRandomEnv-v0')
     os.makedirs(ARGS.log_directory, exist_ok=True)

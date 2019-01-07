@@ -51,14 +51,20 @@ class BackgammonEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self, opponent):
+    def __init__(self, opponent, cont=False):
         # Action and observation spaces.
         lower_bound = np.array([1, ]*2 + [0, ]*52)
         upper_bound = np.array([6, ]*2 + [15, ]*4 + [
             item for sublist in [[2, 15], ]*24 for item in sublist])
         self.observation_space = spaces.Box(low=lower_bound, high=upper_bound,
                                             dtype=np.float32)
-        self.action_space = spaces.Discrete(len(ALL_ACTIONS))
+
+        if cont:
+            self.action_space = spaces.Box(low=np.array([-int((len(ALL_ACTIONS)/2)-1)]),
+                                           high=np.array([int((len(ALL_ACTIONS)/2)-1)]),
+                                           dtype=np.float32)
+        else:
+            self.action_space = spaces.Discrete(len(ALL_ACTIONS))
 
         # Debug info.
         self.__invalid_actions_taken = 0
@@ -97,6 +103,11 @@ class BackgammonEnv(gym.Env):
             debugging, and sometimes learning)
         """
 
+
+        if isinstance(self.action_space, spaces.Box):
+            actionint += int(len(ALL_ACTIONS)/2)
+            actionint = int(actionint)
+
         reward = self.__game.player_turn(actionint)
         observation = self.__game.get_observation()
         done = self.__game.get_done()
@@ -124,5 +135,10 @@ class BackgammonRandomEnv(BackgammonEnv):
 
 
 class BackgammonPolicyEnv(BackgammonEnv):
-    def __init__(self, opponent=PolicyAgent('dqn', 'amca/models/amca.pkl')):
+    def __init__(self, opponent=PolicyAgent('ppo', 'amca/models/amca.pkl')):
         return super().__init__(opponent)
+
+
+class BackgammonRandomContinuousEnv(BackgammonEnv):
+    def __init__(self, opponent=RandomAgent(spaces.Discrete(len(ALL_ACTIONS)))):
+        return super().__init__(opponent, cont=True)
