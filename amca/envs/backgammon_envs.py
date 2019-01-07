@@ -38,16 +38,16 @@ def all_possible_actions():
     for i in sources:
         for j in targets:
             if (j - i) <= 6:
-                actions.append(['move', i, j])
-                actions.append(['move', j, i])
-                actions.append(['hit', i, j])
-                actions.append(['hit', j, i])
+                actions.append(('move', i, j))
+                actions.append(('move', j, i))
+                actions.append(('hit', i, j))
+                actions.append(('hit', j, i))
 
     # 'reenter's, 'reenter_hit's and 'bearoff's
     for j in homes:
-        actions.append(['reenter', j])
-        actions.append(['reenter_hit', j])
-        actions.append(['bearoff', j])
+        actions.append(('reenter', j))
+        actions.append(('reenter_hit', j))
+        actions.append(('bearoff', j))
 
     return actions
 
@@ -81,7 +81,7 @@ class BackgammonEnv(gym.Env):
 
     metadata = {'render.modes': ['human']}
 
-    def __init__(self):
+    def __init__(self, opponent):
         # Environment-specific details; namely action and observation spaces.
         lower_bound = np.array([1, ]*2 + [0, ]*52)
         upper_bound = np.array([6, ]*2 + [15, ]*4 + [
@@ -90,7 +90,7 @@ class BackgammonEnv(gym.Env):
                                             dtype=np.float32)
         self.__all_possible_actions = all_possible_actions()
         self.action_space = spaces.Discrete(len(self.__all_possible_actions))
-        self.__opponent = RandomAgent(self.action_space)
+        self.__opponent = opponent
 
         # Debug info
         self.__invalid_actions_taken = 0
@@ -274,7 +274,7 @@ class BackgammonEnv(gym.Env):
             debugging, and sometimes learning)
         """
 
-        action = self.get_action(actionint)  # TODO
+        action = self.get_action(actionint)
         valid_actions, their_rewards = self.get_valid_actions()
 
         # Case of playing out of turn
@@ -299,9 +299,13 @@ class BackgammonEnv(gym.Env):
         for index, action_set in enumerate(valid_actions):
             if action in action_set:
                 action_is_valid = True
-                reward = their_rewards[index][np.where(action_set == action)]
+                # print(their_rewards)
+                # print(index)
+
+                reward = their_rewards[index][np.where(action_set == action)[0]]
                 self.act(action)
                 del self.__dice[index]
+                del action_set
                 break
 
         # Case of choosing invalid action
@@ -312,6 +316,7 @@ class BackgammonEnv(gym.Env):
                 if action in action_set:
                     self.act(action)
                     del self.__dice[index]
+                    del action_set
                     break
 
         if not self.__dice:
@@ -419,8 +424,15 @@ class BackgammonEnv(gym.Env):
 
     def get_observation(self):
         statevec = []
-        statevec.append(self.__dice[0])
-        statevec.append(self.__dice[1])
+        if len(self.__dice) < 1:
+            statevec.append(0)
+            statevec.append(0)
+        elif len(self.__dice) < 2:
+            statevec.append(self.__dice[0])
+            statevec.append(0)
+        else:
+            statevec.append(self.__dice[0])
+            statevec.append(self.__dice[1])
         statevec.append(self.__w_hitted)
         statevec.append(self.__b_hitted)
         statevec.append(self.__w_bourne_off)
@@ -453,13 +465,16 @@ class BackgammonEnv(gym.Env):
         # Else
         while self.__dice:
             actionint = self.__opponent.make_decision(self.get_observation())
-            action = self.get_action(actionint)  # TODO
+            action = self.get_action(actionint)
             action_is_valid = False
             for index, action_set in enumerate(valid_actions):
                 if action in action_set:
                     action_is_valid = True
                     self.act(action)
+                    print(index)
+                    print(self.__dice)
                     del self.__dice[index]
+                    del action_set
                     break
             if not action_is_valid:
                 action = np.random.choice(valid_actions.flatten())
@@ -467,6 +482,7 @@ class BackgammonEnv(gym.Env):
                     if action in action_set:
                         self.act(action)
                         del self.__dice[index]
+                        del action_set
                         break
 
         self.__turn = 1
@@ -495,31 +511,16 @@ class BackgammonEnv(gym.Env):
                 'invalid actions taken': self.__invalid_actions_taken}
 
 
-class BackgammonRandomOpponentEnv(BackgammonEnv):
-    """
-        Uses a random agent as the opponent for the Backgammon environment.
-    """
-
-    def __init__(self):
-        BackgammonEnv.__init__(self)
-        # BackgammonEnv.__opponent = RandomAgent(self.action_space)
+class BackgammonHumanEnv(BackgammonEnv):
+    def __init__(self, opponent=HumanAgent()):
+        return super().__init__(opponent)
 
 
-# class BackgammonPolicyOpponentEnv(BackgammonEnv):
-#     """
-#         Uses a policy agent as the opponent for the Backgammon environment.
-#     """
-
-#     def __init__(self):
-#         self.__opponent = PolicyAgent(algorithm='dqn', model='amca.pkl')
-#         BackgammonEnv.__init__(self)
+class BackgammonRandomEnv(BackgammonEnv):
+    def __init__(self, opponent=RandomAgent(spaces.Discrete(len(all_possible_actions())))):
+        return super().__init__(opponent)
 
 
-class BackgammonHumanOpponentEnv(BackgammonEnv):
-    """
-        Uses a human agent as the opponent for the Backgammon environment.
-    """
-
-    def __init__(self):
-        BackgammonEnv.__init__(self)
-        self.__opponent = HumanAgent()
+class BackgammonPolicyEnv(BackgammonEnv):
+    def __init__(self, opponent=PolicyAgent('dqn', 'amca/models/amca.pkl')):
+        return super().__init__(opponent)

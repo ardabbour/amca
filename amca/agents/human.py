@@ -13,6 +13,7 @@
 """
 
 
+
 class HumanAgent:
     def __init__(self):
         pass
@@ -20,10 +21,47 @@ class HumanAgent:
     def make_decision(self, observation):
         """Returns the action that is closest to the predicted output."""
 
+        actions = self.all_possible_actions()
         self.print_observation(observation)
-        action = input('Type the index of the action you would like to take')
+        action_type = input(
+            'enter action type {move,hit,reenter,reenter_hit,bearoff}')
+        if action_type in ['move', 'hit']:
+            source = int(input('input source {0,1,..,23}'))
+            target = int(input('input target {0,1,..,23}'))
+            action = (action_type, source, target)
+        elif action_type in ['reenter', 'reenter_hit']:
+            target = int(input('input target {0,1,..,23}'))
+            action = (action_type, target)
+        elif action_type == 'bearoff':
+            source = int(input('input source {0,1,..,23}'))
+            action = (action_type, source)
 
-        return action
+        actionint = actions.index(action)
+
+        return actionint
+
+    def all_possible_actions(self):
+        actions = []
+        sources = list(range(0, 24))
+        targets = list(range(0, 24))
+        homes = list(range(0, 6)) + list(range(18, 24))
+
+        # 'move's and 'hit's
+        for i in sources:
+            for j in targets:
+                if (j - i) <= 6:
+                    actions.append(('move', i, j))
+                    actions.append(('move', j, i))
+                    actions.append(('hit', i, j))
+                    actions.append(('hit', j, i))
+
+        # 'reenter's, 'reenter_hit's and 'bearoff's
+        for j in homes:
+            actions.append(('reenter', j))
+            actions.append(('reenter_hit', j))
+            actions.append(('bearoff', j))
+
+        return actions
 
     def print_observation(self, observation):
         observation

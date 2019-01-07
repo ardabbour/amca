@@ -43,6 +43,6 @@ class PolicyAgent:
     def make_decision(self, observation):
         """Returns the action according to the policy and observation."""
 
-        action, _states = self.__policy.predict(observation)
+        action, _ = self.__policy.predict(observation)
 
         return action

@@ -27,7 +27,7 @@ if __name__ == "__main__":
                         type=str)
     PARSER.add_argument('--model', '-m',
                         help='Path to model',
-                        default='agents/amca.pkl',
+                        default='amca/models/amca.pkl',
                         type=str)
 
     ARGS = PARSER.parse_args()
@@ -54,16 +54,17 @@ if __name__ == "__main__":
         raise ValueError('Unidentified algorithm chosen')
     
     if algorithm in [DDPG, GAIL, SAC]:
-        env = gym.make('BackgammonHumanContinuous-v0')
+        env = gym.make('BackgammonHumanContinuousEnv-v0')
     else:
-        env = gym.make('BackgammonHuman-v0')
-    model = ARGS.algorithm.load(ARGS.model)
+        env = gym.make('BackgammonHumanEnv-v0')
+    model = algorithm.load(ARGS.model)
 
     obs = env.reset()
     while True:
         action, _ = model.predict(obs)
         obs, _, dones, _ = env.step(action)
         env.render()
-        if any(dones):
+        print(dones)
+        if dones:
             print('Done!')
             break
