@@ -35,7 +35,6 @@ class Board:
         self.__hit = {'w': 0, 'b': 0}
         self.__bourne_off = {'w': 0, 'b': 0}
 
-    ######################### GET/SET METHODS ########################
     def get_board(self):
         """Get method for the board."""
 
@@ -66,10 +65,6 @@ class Board:
 
         self.__hit = hit
 
-    ######################### GET/SET METHODS ########################
-
-    ############################ ACTIONS ############################
-
     def basic_validity(self, source_point_index, target_point_index=None):
         """Base sanity checks for all actions."""
 
@@ -83,7 +78,6 @@ class Board:
 
         source = self.__board[source_point_index]
         if target_point_index is not None:
-            # TODO What is the point of this?
             target = self.__board[target_point_index]
 
         if source.get_count() < 1:
@@ -117,6 +111,8 @@ class Board:
 
         source.remove_checker()
         target.add_firstchecker(color)
+        opponent = 'b' if color == 'w' else 'w'
+        self.__hit[opponent] += 1
 
     def update_bearoff(self, color, source_point_index):
         """Bears a checker off the board."""
@@ -124,6 +120,7 @@ class Board:
         source = self.__board[source_point_index]
 
         source.remove_checker()
+        self.__bourne_off[color] += 1
 
     def update_reenter(self, color, target_index):
 
@@ -134,13 +131,16 @@ class Board:
         else:
             target.add_checker()
 
+        self.__hit[color] -= 1
+
     def update_reenterhit(self, color, target_index):
 
         target = self.__board[target_index]
 
         target.add_firstchecker(color)
-
-    ############################ ACTIONS ############################
+        opponent = 'b' if color == 'w' else 'w'
+        self.__hit[opponent] += 1
+        self.__hit[color] -=1
 
 
 class Point:

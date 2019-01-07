@@ -21,14 +21,14 @@ import amca
 
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
-    PARSER.add_argument('algorithm',
-                        help='RL algorithm used to develop the model.',
+    PARSER.add_argument('--algorithm', '-a',
+                        help='Play backgammon against an RL-trained agent.',
                         default='DQN',
                         type=str)
-    PARSER.add_argument('model',
-                        help='Model.',
-                        default=1,
-                        type=int)
+    PARSER.add_argument('--model', '-m',
+                        help='Path to model',
+                        default='agents/amca.pkl',
+                        type=str)
 
     ARGS = PARSER.parse_args()
 
@@ -61,9 +61,9 @@ if __name__ == "__main__":
 
     obs = env.reset()
     while True:
-        action, _states = model.predict(obs)
+        action, _ = model.predict(obs)
         obs, _, dones, _ = env.step(action)
         env.render()
-        if dones:
+        if any(dones):
             print('Done!')
             break

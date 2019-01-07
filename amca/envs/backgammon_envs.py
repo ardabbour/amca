@@ -25,6 +25,31 @@ def roll_dice():
     dice = [np.random.randint(1, 6), np.random.randint(1, 6)]
     if dice[0] == dice[1]:
         return [dice[0], ]*4
+    return dice
+
+
+def all_possible_actions():
+    actions = []
+    sources = list(range(0, 24))
+    targets = list(range(0, 24))
+    homes = list(range(0, 6)) + list(range(18, 24))
+
+    # 'move's and 'hit's
+    for i in sources:
+        for j in targets:
+            if (j - i) <= 6:
+                actions.append(['move', i, j])
+                actions.append(['move', j, i])
+                actions.append(['hit', i, j])
+                actions.append(['hit', j, i])
+
+    # 'reenter's, 'reenter_hit's and 'bearoff's
+    for j in homes:
+        actions.append(['reenter', j])
+        actions.append(['reenter_hit', j])
+        actions.append(['bearoff', j])
+
+    return actions
 
 
 class BackgammonEnv(gym.Env):
@@ -63,7 +88,9 @@ class BackgammonEnv(gym.Env):
             item for sublist in [[2, 15], ]*24 for item in sublist])
         self.observation_space = spaces.Box(low=lower_bound, high=upper_bound,
                                             dtype=np.float32)
-        self.action_space = spaces.Discrete(5*24*24)
+        self.__all_possible_actions = all_possible_actions()
+        self.action_space = spaces.Discrete(len(self.__all_possible_actions))
+        self.__opponent = RandomAgent(self.action_space)
 
         # Debug info
         self.__invalid_actions_taken = 0
@@ -90,27 +117,148 @@ class BackgammonEnv(gym.Env):
             self.__turn = 2
 
         # Start game
-        self.__dice = roll_dice()
         if self.__turn == 2:
+            self.__dice = roll_dice()
             self.play_opponent()
 
-    # TODO
+    def get_action(self, actionint):
+        return self.__all_possible_actions[actionint]
+
     def get_valid_actions(self):
-        """Returns a NUMPY array of NUMPY arrays as such:
+        """Returns two NUMPY array of NUMPY arrays as such:
+
+        For actions:
         [
             [Valid action 1, Valid action 2, ...], # Dice 1 valid actions
             [Valid action 1, Valid action 2, ...], # Dice 2 valid actions
             .
             .
         ]
+        For rewards:
+        [
+            [Reward of valid action 1, Reward of valid action 2, ...],
+            [Reward of valid action 1, Reward of valid action 2, ...],
+            .
+            .
+        ]
         """
+        acts = []
+        rews = []
+        points = self.__gameboard.get_board()
+        for roll in self.__dice:
+            w_indices = []
+            b_indices = []
+            empty_indices = []
+            index = 0
+            for point in points:
+                if point.get_color() == 'w':
+                    w_indices.append(index)
+                elif point.get_color() == 'b':
+                    b_indices.append(index)
+                else:
+                    empty_indices.append(index)
+                index = index+1
 
-    # TODO
+            w_home_board = max(w_indices) < 6
+            b_home_board = min(b_indices) > 17
+            if w_home_board and (self.__w_hitted == 0):
+                self.__w_canbearoff = True
+            if b_home_board and (self.__b_hitted == 0):
+                self.__b_canbearoff = True
+
+            actions = []
+            rewards = []
+            if self.__turn == 1:
+                if self.__w_hitted > 0:
+                    if (24-roll) in (empty_indices + w_indices):
+                        actions.append(('reenter', 24-roll))
+                        rewards.append(roll)
+                    elif ((24-roll) in b_indices) and ((points[24-roll]).get_count() < 2):
+                        actions.append(('reenter_hit', 24-roll))
+                        rewards.append(24)
+
+                else:
+                    for index in w_indices:
+                        if (index-roll) in (w_indices + empty_indices):
+                            actions.append(('move', index, index - roll))
+                            rewards.append(roll)
+                        if ((index-roll) in b_indices) and ((points[index-roll]).get_count() < 2):
+                            actions.append(('hit', index, index - roll))
+                            rewards.append(index)
+                        if (self.__w_canbearoff) and (index < roll):
+                            actions.append(('bearoff', index))
+                            rewards.append(roll)
+
+            if self.__turn == 2:
+                if self.__b_hitted > 0:
+                    if (roll-1) in (empty_indices + b_indices):
+                        actions.append(('reenter', roll-1))
+                        rewards.append(roll)
+                    elif ((roll-1) in w_indices) and ((points[roll-1]).get_count() < 2):
+                        actions.append(('reenter_hit', roll-1))
+                        rewards.append(24)
+
+                else:
+                    for index in b_indices:
+                        if (index+roll) in (b_indices + empty_indices):
+                            actions.append(('move', index, index + roll))
+                            rewards.append(roll)
+                        if ((index+roll) in w_indices) and ((points[index+roll]).get_count() < 2):
+                            actions.append(('hit', index, index + roll))
+                            rewards.append(24-index)
+                        if (self.__b_canbearoff) and ((23-index) < roll):
+                            actions.append(('bearoff', index))
+                            rewards.append(roll)
+
+            acts.append(actions)
+            rews.append(rewards)
+
+        return np.array(acts), np.array(rews)
+
     def act(self, action):
-        """Takes an INTEGER as defined in the action space and modifies the
-        board as neccessary, including the checkers hit and bourne off."""
+        """Takes an action and updates the board as neccessary, including the
+        checkers hit and bourne off."""
 
-    def step(self, action):
+        if self.__turn == 1:
+            if self.__w_hitted > 0:
+                if (action[0] == "reenter"):
+                    self.__w_hitted = self.__w_hitted - 1
+                    (self.__gameboard).update_reenter("w", action[1])
+                if (action[0] == "reenter_hit"):
+                    self.__w_hitted = self.__w_hitted - 1
+                    self.__b_hitted = self.__b_hitted + 1
+                    (self.__gameboard).update_reenterhit("w", action[1])
+            else:
+                if (action[0] == "move"):
+                    (self.__gameboard).update_move("w", action[1], action[2])
+                if (action[0] == "hit"):
+                    self.__b_hitted = self.__b_hitted + 1
+                    (self.__gameboard).update_hit("w", action[1], action[2])
+                if (action[0] == "bearoff"):
+                    (self.__gameboard).update_bearoff("w", action[1])
+
+        if self.__turn == 2:
+            if self.__b_hitted > 0:
+                if (action[0] == "reenter"):
+                    self.__b_hitted = self.__b_hitted - 1
+                    (self.__gameboard).update_reenter("b", action[1])
+                if (action[0] == "reenter_hit"):
+                    self.__w_hitted = self.__w_hitted + 1
+                    self.__b_hitted = self.__b_hitted - 1
+                    (self.__gameboard).update_reenterhit("b", action[1])
+            else:
+                if (action[0] == "move"):
+                    (self.__gameboard).update_move("b", action[1], action[2])
+                if (action[0] == "hit"):
+                    self.__w_hitted = self.__w_hitted + 1
+                    (self.__gameboard).update_hit("b", action[1], action[2])
+                if (action[0] == "bearoff"):
+                    (self.__gameboard).update_bearoff("b", action[1])
+
+        self.__w_bourne_off = self.__gameboard.get_bourne_off()['w']
+        self.__w_bourne_off = self.__gameboard.get_bourne_off()['b']
+
+    def step(self, actionint):
         """Run one timestep of the environment's dynamics. When end of
         episode is reached, you are responsible for calling `reset()`
         to reset this environment's state. Accepts an action and returns a tuple
@@ -125,15 +273,16 @@ class BackgammonEnv(gym.Env):
             info (dict): contains auxiliary diagnostic information (helpful for
             debugging, and sometimes learning)
         """
+
+        action = self.get_action(actionint)  # TODO
+        valid_actions, their_rewards = self.get_valid_actions()
+
         # Case of playing out of turn
         if self.__turn != 1:
             raise ValueError('Agent playing out of turn!')
 
-        valid_actions = self.get_valid_actions()  # TODO
-        action_is_valid = False
-
         # Case of no valid actions
-        if not valid_actions:
+        if len(valid_actions.flatten()) < 1:
             self.__turn = 2
             self.__dice = roll_dice()
             self.play_opponent()
@@ -145,13 +294,17 @@ class BackgammonEnv(gym.Env):
                 self.reset()
             return (observation, reward, done, info)
 
-        # Else
+        # Case of choosing valid action
+        action_is_valid = False
         for index, action_set in enumerate(valid_actions):
             if action in action_set:
                 action_is_valid = True
-                reward = self.act(action)  # TODO
+                reward = their_rewards[index][np.where(action_set == action)]
+                self.act(action)
                 del self.__dice[index]
                 break
+
+        # Case of choosing invalid action
         if not action_is_valid:
             reward = -1000
             action = np.random.choice(valid_actions.flatten())
@@ -160,11 +313,6 @@ class BackgammonEnv(gym.Env):
                     self.act(action)
                     del self.__dice[index]
                     break
-            observation = self.get_observation()
-            done = self.get_done()
-            info = self.get_info()
-            if done:
-                self.reset()
 
         if not self.__dice:
             self.__turn = 2
@@ -296,20 +444,21 @@ class BackgammonEnv(gym.Env):
             raise ValueError('Opponent playing out of turn!')
 
         # Case of no valid actions
-        valid_actions = self.get_valid_actions()  # TODO
-        if not valid_actions:
+        valid_actions, _ = self.get_valid_actions()
+        if len(valid_actions.flatten()) < 1:
             self.__turn = 1
             self.__dice = roll_dice()
             return
 
         # Else
         while self.__dice:
-            action = self.__opponent.make_decision(self.get_observation())
+            actionint = self.__opponent.make_decision(self.get_observation())
+            action = self.get_action(actionint)  # TODO
             action_is_valid = False
             for index, action_set in enumerate(valid_actions):
                 if action in action_set:
                     action_is_valid = True
-                    self.act(action)  # TODO
+                    self.act(action)
                     del self.__dice[index]
                     break
             if not action_is_valid:
@@ -322,6 +471,22 @@ class BackgammonEnv(gym.Env):
 
         self.__turn = 1
         self.__dice = roll_dice()
+
+    def get_done(self):
+        """Returns if the game is over or not."""
+
+        points = self.__gameboard.get_board()
+        i = 0
+        for color in ['w', 'b']:
+            i = 0
+            for point in points:
+                checkers = point.get_count()
+                if point.get_color() == color:
+                    i += checkers
+            if i < 1:
+                return (True, self.get_player(color))
+
+        return False
 
     def get_info(self):
         """Returns useful info for debugging, etc."""
@@ -336,18 +501,18 @@ class BackgammonRandomOpponentEnv(BackgammonEnv):
     """
 
     def __init__(self):
-        self.__opponent = RandomAgent(self.action_space)
         BackgammonEnv.__init__(self)
+        # BackgammonEnv.__opponent = RandomAgent(self.action_space)
 
 
-class BackgammonPolicyOpponentEnv(BackgammonEnv):
-    """
-        Uses a policy agent as the opponent for the Backgammon environment.
-    """
+# class BackgammonPolicyOpponentEnv(BackgammonEnv):
+#     """
+#         Uses a policy agent as the opponent for the Backgammon environment.
+#     """
 
-    def __init__(self):
-        self.__opponent = PolicyAgent(algorithm='dqn', model='amca.pkl')
-        BackgammonEnv.__init__(self)
+#     def __init__(self):
+#         self.__opponent = PolicyAgent(algorithm='dqn', model='amca.pkl')
+#         BackgammonEnv.__init__(self)
 
 
 class BackgammonHumanOpponentEnv(BackgammonEnv):
@@ -356,5 +521,5 @@ class BackgammonHumanOpponentEnv(BackgammonEnv):
     """
 
     def __init__(self):
-        self.__opponent = HumanAgent()
         BackgammonEnv.__init__(self)
+        self.__opponent = HumanAgent()

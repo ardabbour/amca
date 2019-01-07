@@ -158,7 +158,7 @@ if __name__ == "__main__":
     if algorithm in [DDPG, GAIL, SAC]:
         env = gym.make('BackgammonPolicyContinuous-v0')
     else:
-        env = gym.make('BackgammonPolicy-v0')
+        env = gym.make('BackgammonRandom-v0')
     os.makedirs(ARGS.log_directory, exist_ok=True)
     env = Monitor(env, ARGS.log_directory, allow_early_resets=True)
     env = DummyVecEnv([lambda: env])

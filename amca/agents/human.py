@@ -21,15 +21,9 @@ class HumanAgent:
         """Returns the action that is closest to the predicted output."""
 
         self.print_observation(observation)
-        self.print_valid_actions(observation)  # TODO DEFINE THIS
         action = input('Type the index of the action you would like to take')
 
         return action
-
-    # TODO
-    def print_valid_actions(self, observation):
-        """Takes an observation vector and represents only the valid actions
-        available to the player."""
 
     def print_observation(self, observation):
         observation
