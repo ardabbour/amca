@@ -102,6 +102,10 @@ if __name__ == "__main__":
                         help='Directory to store log files.',
                         default='logs/',
                         type=str)
+    PARSER.add_argument('--cont', '-c',
+                        help='Model to continue training.',
+                        default='amca/model/amca.pkl',
+                        type=str)
     PARSER.add_argument('--policy', '-p',
                         help='Policy network type.',
                         default='MLP')
@@ -184,9 +188,9 @@ if __name__ == "__main__":
     else:
         raise ValueError('Unidentified policy chosen')
 
+    model = algorithm.load(ARGS.cont, verbose=ARGS.verbose)
     env = SubprocVecEnv([make_env(algorithm, i) for i in range(int(ARGS.multiprocess))])
-
-    model = algorithm(policy, env, verbose=ARGS.verbose)
+    model.set_env(env)
 
     model.learn(total_timesteps=ARGS.timesteps)
     model.save('{}'.format(ARGS.name))
