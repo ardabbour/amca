@@ -19,9 +19,6 @@ import numpy as np
 from amca.envs.board import Board
 
 
-ALL_ACTIONS = all_possible_actions()
-
-
 def roll_dice():
     dice = [np.random.randint(1, 6), np.random.randint(1, 6)]
     if dice[0] == dice[1]:
@@ -53,6 +50,9 @@ def all_possible_actions():
     return actions
 
 
+ALL_ACTIONS = all_possible_actions()
+
+
 class Game:
     """Player 1 is the priveleged player here. Player 2 is the player who is
     the opponent. The opponent can either be a random agent, a human, or a
@@ -67,6 +67,8 @@ class Game:
         self.__b_bourne_off = 0
         self.__w_canbearoff = False
         self.__b_canbearoff = False
+        self.__opponent = player2
+        self.__dice = []
 
         # The higher dice roll starts
         w_toss = roll_dice()
@@ -76,32 +78,33 @@ class Game:
             b_toss = roll_dice()
         if sum(w_toss) > sum(b_toss):
             self.__turn = 1
+            self.__dice = roll_dice()
+
         else:
             self.__turn = 2
-
-        # Start game
-        if self.__turn == 2:
             self.__dice = roll_dice()
             self.play_opponent()
+            self.__dice = roll_dice()
+
 
     def player_turn(self, actionint):
         """Takes an actionint from the Backgammon Environment, converts it to an
         action, processes the result of the action and returns the reward."""
 
         # Case of playing out of turn
-        if self.__turn != 1:
-            raise ValueError('Agent playing out of turn!')
+        # if self.__turn != 1:
+        #     raise ValueError('Agent playing out of turn!')
 
         # Case of no valid actions
         valid_actions, their_rewards = self.get_valid_actions()
-        if not any(valid_actions) < 1:
+        if not any(valid_actions):
             self.__turn = 2
             self.opponent_turn()
             self.__dice = roll_dice()
             reward = 0
             return reward
 
-        action = self.__game.get_action(actionint)
+        action = self.get_action(actionint)
 
         # Case of choosing valid action
         action_is_valid = False
@@ -114,8 +117,7 @@ class Game:
                     self.__turn = 2
                     self.opponent_turn()
                     self.__dice = roll_dice()
-                reward = their_rewards[index][np.where(
-                    action_set == action)[0]]
+                reward = their_rewards[index][np.where(action_set == action)[0]]
                 return reward
 
         # Case of choosing invalid action
@@ -138,6 +140,8 @@ class Game:
 
         self.__dice = roll_dice()
         while self.__dice:
+            if self.get_done():
+                break
             self.play_opponent()
         self.__turn = 1
 
@@ -145,8 +149,8 @@ class Game:
         """Plays a single dice of the opponent."""
 
         # Case of playing out of turn
-        if self.__turn != 2:
-            raise ValueError('Opponent playing out of turn!')
+        # if self.__turn != 2:
+        #     raise ValueError('Opponent playing out of turn!')
 
         # Case of no valid actions
         valid_actions, _ = self.get_valid_actions()
@@ -178,7 +182,7 @@ class Game:
     def get_action(self, actionint):
         """Returns the action tuple associated with the actionint."""
 
-        return self.ALL_ACTIONS[actionint]
+        return ALL_ACTIONS[actionint]
 
     def get_valid_actions(self):
         """Returns two NUMPY array of NUMPY arrays as such:
@@ -315,7 +319,10 @@ class Game:
         self.__w_bourne_off = self.__gameboard.get_bourne_off()['b']
 
     def get_random_action(self, valid_actions):
-        return random.choice(random.choice(valid_actions))
+        first_choice = random.choice(valid_actions)
+        while not first_choice:
+            first_choice = random.choice(valid_actions)
+        return random.choice(first_choice)
 
     def get_observation(self):
         statevec = []
