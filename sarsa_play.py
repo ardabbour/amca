@@ -9,7 +9,7 @@
     Faculty of Engineering and Natural Sciences
     Sabanci University
 
-    This script allows us to play against a Backgammon agent.
+    This script allows us to play against a SARSA Backgammon agent.
 """
 
 import argparse
@@ -21,7 +21,7 @@ if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--name', '-n',
                         help='Name of the agent to play againts.',
-                        default='amca/models/sarsa-vs_random-1M',
+                        default='amca/models/sarsa-vs_random-1M.pkl',
                         type=str)
     PARSER.add_argument('--games', '-g',
                         help='Number of games to play.',
@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     ARGS = PARSER.parse_args()
 
-    filename = '{}.pkl'.format(ARGS.name)
+    filename = ARGS.name
     infile = open(filename, 'rb')
     agent = pickle.load(infile)
     infile.close()

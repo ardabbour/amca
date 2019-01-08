@@ -19,53 +19,49 @@ from amca.game import SarsaGame
 from amca.agents import SarsaAgent, RandomSarsaAgent
 
 
-def train(agent_train, opponent, maxmove, numgames, verbose):
-    for i in range(numgames):
-        if verbose and numgames % 1000 == 0:
-            print('Finished {} games'.format(i+1))
+def train(agent_train, opponent, maxmove):
+    gamei = SarsaGame(agent_train, opponent)
+    num_move = 0
+    gamei.roll_dice()
+    while (num_move < maxmove) and (not gamei.is_over()):
 
-        gamei = SarsaGame(agent_train, opponent)
-        num_move = 0
-        gamei.roll_dice()
-        while (num_move < maxmove) and (not gamei.is_over()):
+        # Agent turn
+        if not gamei.is_over():
+            curstate = gamei.get_state3(gamei.get_dice(0))
+            possible_actions, their_rewards = gamei.get_actions(
+                agent_train, gamei.get_dice(0))
+            curaction, action_index = agent_train.chooseAction(
+                curstate, possible_actions)
+            gamei.update_board(agent_train, curaction)
+            reward = their_rewards[action_index]
+            nextstate = gamei.get_state3(gamei.get_dice(1))
+        if not gamei.is_over():
+            curstate = gamei.get_state3(gamei.get_dice(1))
+            possible_actions, their_rewards = gamei.get_actions(
+                agent_train, gamei.get_dice(1))
+            nextaction, action_index = agent_train.chooseAction(
+                curstate, possible_actions)
+            gamei.update_board(agent_train, nextaction)
+            agent_train.learn(curstate, curaction,
+                              reward, nextstate, nextaction)
+            reward = their_rewards[action_index]
 
-            # Agent turn
-            if not gamei.is_over():
-                curstate = gamei.get_state3(gamei.get_dice(0))
-                possible_actions, their_rewards = gamei.get_actions(
-                    agent_train, gamei.get_dice(0))
-                curaction, action_index = agent_train.chooseAction(
-                    curstate, possible_actions)
-                gamei.update_board(agent_train, curaction)
-                reward = their_rewards[action_index]
-                nextstate = gamei.get_state3(gamei.get_dice(1))
-            if not gamei.is_over():
-                curstate = gamei.get_state3(gamei.get_dice(1))
-                possible_actions, their_rewards = gamei.get_actions(
-                    agent_train, gamei.get_dice(1))
-                nextaction, action_index = agent_train.chooseAction(
-                    curstate, possible_actions)
-                gamei.update_board(agent_train, nextaction)
-                agent_train.learn(curstate, curaction,
-                                  reward, nextstate, nextaction)
-                reward = their_rewards[action_index]
+            # Opponent turn
+            gamei.roll_dice()
+            for i in range(2):
+                if not gamei.is_over():
+                    nextstate = gamei.get_dice(i)
+                    possible_actions, their_rewards = gamei.get_actions(
+                        opponent, gamei.get_dice(i))
+                    oppaction, action_index = opponent.chooseAction(
+                        nextstate, possible_actions)
+                    gamei.update_board(opponent, oppaction)
+            gamei.roll_dice()
+            nextstate = gamei.get_state3(gamei.get_dice(0))
+            agent_train.learn(curstate, curaction,
+                              reward, nextstate, nextaction)
 
-                # Opponent turn
-                gamei.roll_dice()
-                for i in range(2):
-                    if not gamei.is_over():
-                        nextstate = gamei.get_dice(i)
-                        possible_actions, their_rewards = gamei.get_actions(
-                            opponent, gamei.get_dice(i))
-                        oppaction, action_index = opponent.chooseAction(
-                            nextstate, possible_actions)
-                        gamei.update_board(opponent, oppaction)
-                gamei.roll_dice()
-                nextstate = gamei.get_state3(gamei.get_dice(0))
-                agent_train.learn(curstate, curaction,
-                                  reward, nextstate, nextaction)
-
-            num_move += 1
+        num_move += 1
 
     return agent_train
 
@@ -74,7 +70,7 @@ if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--name', '-n',
                         help='Name of the agent to be trained.',
-                        default='amca/models/sarsa-vs_random-1M',
+                        default='amca/models/sarsa-vs_random-1M.pkl',
                         type=str)
     PARSER.add_argument('--maxmove', '-m',
                         help='Maximum number of moves per game.',
@@ -92,19 +88,23 @@ if __name__ == "__main__":
     ARGS = PARSER.parse_args()
 
     if bool(int(ARGS.continued)):
-        infilename = '{}.pkl'.format(ARGS.name)
+        infilename = ARGS.name
         with open(infilename, 'rb') as f:
             agent = pickle.load(f)
     else:
         agent = SarsaAgent()
 
-    agent = train(agent, RandomSarsaAgent('opponent'),
-                  maxmove=int(ARGS.maxmove), numgames=int(ARGS.games),
-                  verbose=bool(int(ARGS.verbose)))
+    for i in range(int(ARGS.games)):
+        if int(ARGS.verbose):
+            print('Completed {} games'.format(i))
+        try:
+            agent = train(agent, RandomSarsaAgent('opponent'), maxmove=int(ARGS.maxmove))
+        except:
+            pass
 
     if bool(int(ARGS.continued)):
         outfilename = '{}-updated.pkl'.format(ARGS.name)
     else:
-        outfilename = '{}.pkl'.format(ARGS.name)
+        outfilename = ARGS.name
     with open(outfilename, 'wb') as f:
         pickle.dump(agent, f)
