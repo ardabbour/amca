@@ -22,8 +22,8 @@ import amca
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--algorithm', '-a',
-                        help='Play backgammon against an RL-trained agent.',
-                        default='DQN',
+                        help='Algorithm used to train the model.',
+                        default='PPO',
                         type=str)
     PARSER.add_argument('--model', '-m',
                         help='Path to model',
@@ -52,7 +52,7 @@ if __name__ == "__main__":
         algorithm = TRPO
     else:
         raise ValueError('Unidentified algorithm chosen')
-    
+
     if algorithm in [DDPG, GAIL, SAC]:
         env = gym.make('BackgammonHumanContinuousEnv-v0')
     else:
@@ -64,7 +64,6 @@ if __name__ == "__main__":
         action, _ = model.predict(obs)
         obs, _, dones, _ = env.step(action)
         env.render()
-        print(dones)
         if dones:
             print('Done!')
             break

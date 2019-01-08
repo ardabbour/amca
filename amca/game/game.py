@@ -16,7 +16,7 @@ import random
 import copy
 
 import numpy as np
-from amca.envs.board import Board
+from amca.game.board import Board
 
 
 def roll_dice():
@@ -161,10 +161,8 @@ class Game:
         action = self.get_action(actionint)
 
         # Case of valid action chosen
-        action_is_valid = False
         for index, action_set in enumerate(valid_actions):
             if action in action_set:
-                action_is_valid = True
                 self.act(action)
                 del self.__dice[index]
                 return

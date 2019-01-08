@@ -18,7 +18,7 @@ import gym
 from gym import spaces
 import numpy as np
 
-from amca.envs.game import Game, ALL_ACTIONS
+from amca.game import Game, ALL_ACTIONS
 from amca.agents import RandomAgent, PolicyAgent, HumanAgent
 
 
@@ -61,7 +61,8 @@ class BackgammonEnv(gym.Env):
 
         if cont:
             self.action_space = spaces.Box(low=np.array([-int((len(ALL_ACTIONS)/2)-1)]),
-                                           high=np.array([int((len(ALL_ACTIONS)/2)-1)]),
+                                           high=np.array(
+                                               [int((len(ALL_ACTIONS)/2)-1)]),
                                            dtype=np.float32)
         else:
             self.action_space = spaces.Discrete(len(ALL_ACTIONS))
@@ -103,7 +104,6 @@ class BackgammonEnv(gym.Env):
             debugging, and sometimes learning)
         """
 
-
         if isinstance(self.action_space, spaces.Box):
             actionint += int(len(ALL_ACTIONS)/2)
             actionint = int(actionint)
@@ -126,19 +126,29 @@ class BackgammonEnv(gym.Env):
 
 class BackgammonHumanEnv(BackgammonEnv):
     def __init__(self, opponent=HumanAgent()):
-        return super().__init__(opponent)
+        super().__init__(opponent)
 
 
 class BackgammonRandomEnv(BackgammonEnv):
     def __init__(self, opponent=RandomAgent(spaces.Discrete(len(ALL_ACTIONS)))):
-        return super().__init__(opponent)
+        super().__init__(opponent)
 
 
 class BackgammonPolicyEnv(BackgammonEnv):
     def __init__(self, opponent=PolicyAgent('ppo', 'amca/models/amca.pkl')):
-        return super().__init__(opponent)
+        super().__init__(opponent)
+
+
+class BackgammonHumanContinuousEnv(BackgammonEnv):
+    def __init__(self, opponent=HumanAgent()):
+        super().__init__(opponent, cont=True)
+
+
+class BackgammonPolicyContinuousEnv(BackgammonEnv):
+    def __init__(self, opponent=RandomAgent(spaces.Discrete(len(ALL_ACTIONS)))):
+        super().__init__(opponent, cont=True)
 
 
 class BackgammonRandomContinuousEnv(BackgammonEnv):
-    def __init__(self, opponent=RandomAgent(spaces.Discrete(len(ALL_ACTIONS)))):
-        return super().__init__(opponent, cont=True)
+    def __init__(self, opponent=PolicyAgent('ppo', 'amca/models/amca.pkl')):
+        super().__init__(opponent, cont=True)

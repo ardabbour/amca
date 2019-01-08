@@ -13,15 +13,13 @@
 """
 
 
-
 class HumanAgent:
     def __init__(self):
-        pass
+        self.__actions = self.all_possible_actions()
 
     def make_decision(self, observation):
         """Returns the action that is closest to the predicted output."""
 
-        actions = self.all_possible_actions()
         self.print_observation(observation)
         action_type = input(
             'enter action type {move,hit,reenter,reenter_hit,bearoff}')
@@ -36,7 +34,7 @@ class HumanAgent:
             source = int(input('input source {0,1,..,23}'))
             action = (action_type, source)
 
-        actionint = actions.index(action)
+        actionint = self.__actions.index(action)
 
         return actionint
 

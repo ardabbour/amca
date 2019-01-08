@@ -65,28 +65,6 @@ class Board:
 
         self.__hit = hit
 
-    def basic_validity(self, source_point_index, target_point_index=None):
-        """Base sanity checks for all actions."""
-
-        if not 0 <= source_point_index <= 23:
-            raise ValueError('Source index is not within bounds.')
-        if target_point_index is not None:
-            if not 0 <= target_point_index <= 23:
-                raise ValueError('Target index is not within bounds.')
-            if not source_point_index != target_point_index:
-                raise ValueError('Source and target indices are the same.')
-
-        source = self.__board[source_point_index]
-        if target_point_index is not None:
-            target = self.__board[target_point_index]
-
-        if source.get_count() < 1:
-            raise ValueError('No checkers in source point.')
-        if self.__hit[source.get_color()] > 0:
-            raise ValueError('Cannot act while having a hit checker.')
-
-        return True
-
     def update_move(self, color, source_point_index, target_point_index):
         """Moves a single checker from one point to another. This action is only
         valid for moving to an empty point or a point already occupied by the
@@ -130,7 +108,6 @@ class Board:
             target.add_firstchecker(color)
         else:
             target.add_checker()
-
         self.__hit[color] -= 1
 
     def update_reenterhit(self, color, target_index):
@@ -140,7 +117,7 @@ class Board:
         target.add_firstchecker(color)
         opponent = 'b' if color == 'w' else 'w'
         self.__hit[opponent] += 1
-        self.__hit[color] -=1
+        self.__hit[color] -= 1
 
 
 class Point:

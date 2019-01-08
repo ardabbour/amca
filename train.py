@@ -26,14 +26,37 @@ import matplotlib.pyplot as plt
 import gym
 from stable_baselines import A2C, ACER, ACKTR, DDPG, DQN, GAIL, PPO2, TRPO, SAC
 from stable_baselines.bench import Monitor
+from stable_baselines.common import set_global_seeds
 from stable_baselines.common.policies import MlpPolicy, MlpLstmPolicy, MlpLnLstmPolicy, CnnPolicy, CnnLstmPolicy, CnnLnLstmPolicy
-from stable_baselines.deepq import policies as dqn_policies
+from stable_baselines.common.vec_env import DummyVecEnv, SubprocVecEnv
 from stable_baselines.ddpg import policies as ddpg_policies
-from stable_baselines.sac import policies as sac_policies
-from stable_baselines.common.vec_env import DummyVecEnv
+from stable_baselines.deepq import policies as dqn_policies
 from stable_baselines.results_plotter import load_results, ts2xy
+from stable_baselines.sac import policies as sac_policies
 
+# Amca imports
 import amca
+
+
+def make_env(env_id, algorithm, rank, seed=0):
+    """
+    Utility function for multiprocessed env.
+
+    :param env_id: (str) the environment ID
+    :param num_env: (int) the number of environment you wish to have in subprocesses
+    :param seed: (int) the inital seed for RNG
+    :param rank: (int) index of the subprocess
+    """
+
+    def _init():
+        env = gym.make(env_id)
+        env.seed(seed + rank)
+
+        os.makedirs(ARGS.log_directory, exist_ok=True)
+        env = Monitor(env, ARGS.log_directory, allow_early_resets=True)
+        return env
+    set_global_seeds(seed)
+    return _init
 
 
 def movingAverage(values, window):
@@ -69,23 +92,35 @@ def plot_results(logdir, title, window):
 if __name__ == "__main__":
     PARSER = argparse.ArgumentParser(description='Train an agent using RL')
     PARSER.add_argument('--name', '-n',
-                        help='Name of the agent to be trained.',
-                        default='new_amca',
+                        help='Path to the the model to be trained.',
+                        default='amca/models/new_model.pkl',
+                        type=str)
+    PARSER.add_argument('--cont', '-c',
+                        help='Path to the model to continue training.',
+                        default='None',
                         type=str)
     PARSER.add_argument('--log_directory', '-l',
                         help='Directory to store log files.',
                         default='logs/',
                         type=str)
     PARSER.add_argument('--policy', '-p',
-                        help='Policy network type.',
+                        help='Policy network type to use in RL Algorithm.',
                         default='MLP')
     PARSER.add_argument('--algorithm', '-a',
-                        help='RL Algorithm.',
+                        help='RL Algorithm to use for training.',
                         default='DQN',
                         type=str)
     PARSER.add_argument('--timesteps', '-t',
                         help='Number of timesteps to train.',
                         default=100000,
+                        type=int)
+    PARSER.add_argument('--multiprocess', '-m',
+                        help='How many multiprocesses to use.',
+                        default=1,
+                        type=int)
+    PARSER.add_argument('--graph', '-g',
+                        help='Plot a performance graph of the training.',
+                        default=1,
                         type=int)
     PARSER.add_argument('--window', '-w',
                         help='Moving average window for mean reward plotting.',
@@ -93,10 +128,6 @@ if __name__ == "__main__":
                         type=int)
     PARSER.add_argument('--verbose', '-v',
                         help='Verbosity.',
-                        default=1,
-                        type=int)
-    PARSER.add_argument('--graph', '-g',
-                        help='Plot a performance graph of the training.',
                         default=1,
                         type=int)
 
@@ -155,14 +186,25 @@ if __name__ == "__main__":
         raise ValueError('Unidentified policy chosen')
 
     if algorithm in [DDPG, GAIL, SAC]:
-        env = gym.make('BackgammonRandomContinuousEnv-v0')
+        env_id = 'BackgammonRandomContinuousEnv-v0'
     else:
-        env = gym.make('BackgammonRandomEnv-v0')
-    os.makedirs(ARGS.log_directory, exist_ok=True)
-    env = Monitor(env, ARGS.log_directory, allow_early_resets=True)
-    env = DummyVecEnv([lambda: env])
+        env_id = 'BackgammonRandomEnv-v0'
 
-    model = algorithm(policy, env, verbose=ARGS.verbose)
+    os.makedirs(ARGS.log_directory, exist_ok=True)
+    if ARGS.multiprocess > 1:
+        env = SubprocVecEnv([make_env(env_id, algorithm, i)
+                             for i in range(int(ARGS.multiprocess))])
+    else:
+        env = gym.make(env_id)
+        env = Monitor(env, ARGS.log_directory, allow_early_resets=True)
+        env = DummyVecEnv([lambda: env])
+
+    if ARGS.cont == 'None':
+        model = algorithm(policy, env, verbose=ARGS.verbose)
+    else:
+        model = algorithm.load(ARGS.cont, verbose=ARGS.verbose)
+        model.set_env(env)
+
     model.learn(total_timesteps=ARGS.timesteps)
     model.save('{}'.format(ARGS.name))
 
