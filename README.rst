@@ -37,7 +37,9 @@ algorithms:
 - `Sarsa (Rummery and Niranjan)`_
 
 The testing is done with the default parameters and implementations provided by
-the `Stable Baselines`_ library.
+the `Stable Baselines`_ library for all the 3 deep RL algorithms. A custom implementation
+heavily modified from `this repo`_ is used for SARSA, and the hyperparameters
+are given in the `SarsaAgent`_ object.
 
 Usage
 -----
@@ -62,5 +64,7 @@ License
 .. _Deep Q Network (Mnih et. al): https://arxiv.org/abs/1312.5602/
 .. _Proximal Policy Optimization (Schulman et. al): https://arxiv.org/abs/1707.06347/
 .. _Soft Actor-Critic (Haarnoja et. al): https://arxiv.org/abs/1812.05905/
-.. _`Sarsa (Rummery and Niranjan)`: ftp://mi.eng.cam.ac.uk/pub/reports/auto-pdf/rummery_tr166.pdf
+.. _Sarsa (Rummery and Niranjan): ftp://mi.eng.cam.ac.uk/pub/reports/auto-pdf/rummery_tr166.pdf
 .. _GNU General Public License v3.0: /LICENSE
+.. _this repo: https://github.com/vmayoral/basic_reinforcement_learning/tree/master/tutorial2
+.. _SarsaAgent: amca/agents/sarsa.py
