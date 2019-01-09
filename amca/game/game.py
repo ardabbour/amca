@@ -89,7 +89,6 @@ class Game:
         action, processes the result of the action and returns the reward."""
 
         # Case of playing out of turn
-
         if self.__turn != 1:
             raise ValueError('Agent playing out of turn!')
 
@@ -104,10 +103,8 @@ class Game:
         action = self.get_action(actionint)
 
         # Case of choosing valid action
-        action_is_valid = False
         for index, action_set in enumerate(valid_actions):
             if action in action_set:
-                action_is_valid = True
                 self.act(action)
                 del self.__dice[index]
                 if not self.__dice:

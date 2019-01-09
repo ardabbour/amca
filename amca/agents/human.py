@@ -21,6 +21,19 @@ class HumanAgent:
         """Returns the action that is closest to the predicted output."""
 
         self.print_observation(observation)
+        # print('Available actions:')
+        # acts = self.get_valid_actions(observation)
+        # actints = [self.__actions.index(x) for x in acts]
+        # for actint, act in actints, acts:
+        #     print('{} - {}'.format(actint, act))
+
+        # actint = int(input('Type action ID'))
+        # while actint not in actints:
+        #     print('Invalid action ID chosen')
+        #     for actint, act in actints, acts:
+        #         print('{} - {}'.format(actint, act))
+        #     actint = int(input('Type action ID'))
+
         action_type = input(
             'enter action type {move,hit,reenter,reenter_hit,bearoff}')
         if action_type in ['move', 'hit']:
@@ -61,8 +74,55 @@ class HumanAgent:
 
         return actions
 
+    # def get_valid_actions(self, observation):
+    #     """Returns all the possible actions. Assumes the player is b player."""
+
+    #     acts = []
+    #     dice, b_hit, points = self.get_state_from_observation(observation)
+    #     for roll in dice:
+    #         w_indices = []
+    #         b_indices = []
+    #         empty_indices = []
+    #         index = 0
+    #         for point in points:
+    #             if point.get_color() == 'w':
+    #                 w_indices.append(index)
+    #             elif point.get_color() == 'b':
+    #                 b_indices.append(index)
+    #             else:
+    #                 empty_indices.append(index)
+    #             index = index+1
+
+    #         b_home_board = min(b_indices) > 17
+    #         if b_home_board and (b_hit == 0):
+    #             b_canbearoff = True
+
+    #         actions = []
+
+    #         if b_hit > 0:
+    #             if (roll-1) in (empty_indices + b_indices):
+    #                 actions.append(('reenter', roll-1))
+    #             elif ((roll-1) in w_indices) and ((points[roll-1]).get_count() < 2):
+    #                 actions.append(('reenter_hit', roll-1))
+
+    #         else:
+    #             for index in b_indices:
+    #                 if (index+roll) in (b_indices + empty_indices):
+    #                     actions.append(('move', index, index + roll))
+    #                 if ((index+roll) in w_indices) and ((points[index+roll]).get_count() < 2):
+    #                     actions.append(('hit', index, index + roll))
+    #                 if (b_canbearoff) and ((23-index) < roll):
+    #                     actions.append(('bearoff', index))
+
+    #         acts.append(actions)
+
+    #     return acts
+
+    # def get_state_from_observation(self, observation):
+    #     if 
+
+
     def print_observation(self, observation):
-        observation
         max_picese_point = max(observation)
         observation = zip(observation[::2], observation[1::2])
         observation = list(observation)
